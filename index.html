@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>WookWorld Tycoon</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+
+  <!-- Loading screen -->
+  <div id="loading-screen">
+    <img class="logo-bg logo-desktop" src="assets/logo.jpg" alt="WookWorld Tycoon">
+    <img class="logo-bg logo-mobile" src="assets/logo-mobile.jpg" alt="WookWorld Tycoon">
+    <div class="menu-signs">
+      <button id="menu-play" class="sign-btn sign-1">PLAY</button>
+      <button id="menu-saves" class="sign-btn sign-2">SAVES</button>
+      <button id="menu-audio" class="sign-btn sign-3">AUDIO</button>
+    </div>
+  </div>
+
+  <!-- Save slot modal -->
+  <div id="save-modal" class="hidden">
+    <div id="save-modal-card">
+      <div class="panel-header">
+        <h2>Save Slots</h2>
+        <button id="close-saves" class="close-btn">&times;</button>
+      </div>
+      <div id="save-slots"></div>
+    </div>
+  </div>
+
+  <!-- HUD overlay -->
+  <div id="hud">
+    <div id="hud-top">
+      <div id="money-display">💰 $50,000</div>
+      <div id="reputation-display">⭐ 0</div>
+      <div id="crowd-display">👥 0</div>
+      <div id="season-display">📅 Season 1</div>
+    </div>
+  </div>
+
+  <!-- Festival controls (always visible) -->
+  <div id="festival-controls">
+    <button id="festival-btn" class="hud-btn">🎪 Plan Festival</button>
+    <button id="objectives-btn" class="hud-btn">🏆 Goals</button>
+  </div>
+
+  <!-- Festival live HUD (visible during hosting) -->
+  <div id="festival-live" class="hidden">
+    <div class="live-item">🎵 Day <span id="live-day">1</span> / <span id="live-total">3</span></div>
+    <div class="live-item">🍔 Vendor Sales: $<span id="live-vendor">0</span></div>
+  </div>
+
+  <!-- Build menu -->
+  <div id="build-menu" class="panel hidden">
+    <div class="panel-header">
+      <h2>Build</h2>
+      <button id="close-build" class="close-btn">&times;</button>
+    </div>
+    <div id="build-categories">
+      <button class="cat-btn active" data-category="stages">Stages</button>
+      <button class="cat-btn" data-category="facilities">Facilities</button>
+      <button class="cat-btn" data-category="camping">Camping</button>
+      <button class="cat-btn" data-category="decor">Decor</button>
+      <button class="cat-btn" data-category="infrastructure">Paths &amp; Fences</button>
+    </div>
+    <div id="build-items"></div>
+  </div>
+
+  <!-- Festival planning panel -->
+  <div id="festival-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2>🎪 Plan Festival</h2>
+      <button id="close-festival" class="close-btn">&times;</button>
+    </div>
+    <div id="festival-body">
+      <div class="price-controls">
+        <label>Ticket Price</label>
+        <div class="price-row">
+          <button id="price-down" class="price-btn">−</button>
+          <span id="price-display">$50</span>
+          <button id="price-up" class="price-btn">+</button>
+        </div>
+      </div>
+      <div class="fest-divider"></div>
+      <div class="fest-stat"><span>Expected Attendance</span><span id="fest-attendance">0</span></div>
+      <div class="fest-stat"><span>Ticket Revenue</span><span id="fest-revenue" class="money">$0</span></div>
+      <div class="fest-stat"><span>Operating Costs</span><span id="fest-expenses" class="expense">$0</span></div>
+      <div class="fest-divider"></div>
+      <button id="host-btn" class="host-btn" disabled>🎤 Host Festival</button>
+      <p id="host-hint" class="hint">Place at least one stage to host</p>
+    </div>
+  </div>
+
+  <!-- Objectives panel -->
+  <div id="objectives-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2>🏆 Goals</h2>
+      <button id="close-objectives" class="close-btn">&times;</button>
+    </div>
+    <div id="objectives-list"></div>
+  </div>
+
+  <!-- Results overlay -->
+  <div id="results-overlay" class="hidden">
+    <div id="results-card">
+      <h2>🎪 Festival Report — Season <span id="res-season">1</span></h2>
+      <div class="res-satisfaction">
+        <span id="res-grade">B</span>
+        <div class="sat-bar"><div id="sat-fill"></div></div>
+        <span id="res-sat-pct">70%</span>
+      </div>
+      <div class="res-stats">
+        <div class="res-row"><span>Attendance</span><span id="res-attendance">0</span></div>
+        <div class="res-row"><span>Ticket Revenue</span><span id="res-tickets" class="money">$0</span></div>
+        <div class="res-row"><span>Vendor Revenue</span><span id="res-vendor" class="money">$0</span></div>
+        <div class="res-row"><span>Operating Costs</span><span id="res-expenses" class="expense">-$0</span></div>
+        <div class="res-divider"></div>
+        <div class="res-row total"><span>Net Profit</span><span id="res-profit">$0</span></div>
+        <div class="res-row"><span>Reputation Earned</span><span id="res-rep" class="rep">+0 ⭐</span></div>
+      </div>
+      <button id="continue-btn" class="host-btn">Continue to Next Season →</button>
+    </div>
+  </div>
+
+  <!-- Bottom toolbar -->
+  <div id="toolbar">
+    <button class="tool-btn" data-tool="select" title="Select">🔍</button>
+    <button class="tool-btn active" data-tool="build" title="Build">🔨</button>
+    <button class="tool-btn" data-tool="bulldoze" title="Bulldoze">🗑️</button>
+    <button class="tool-btn" data-tool="rotate" title="Rotate">🔄</button>
+  </div>
+
+  <!-- Selected object info panel -->
+  <div id="info-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2 id="info-name">Stage</h2>
+      <button id="close-info" class="close-btn">&times;</button>
+    </div>
+    <div id="info-body"></div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./libs/three.module.min.js"
+    }
+  }
+  </script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

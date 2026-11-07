@@ -1,0 +1,608 @@
+import * as THREE from 'three';
+import { CameraController } from './game/camera.js';
+import { World } from './game/world.js';
+import { Economy } from './game/economy.js';
+import { CrowdSystem } from './game/crowd.js';
+import { DayNightCycle } from './game/daynight.js';
+import { FestivalManager } from './game/festival.js';
+import { ObjectiveManager, OBJECTIVES } from './game/objectives.js';
+import { getBuildingById, CATEGORIES } from './game/buildings.js';
+import { saveGame, loadGame, listSlots, deleteSave } from './game/save.js';
+import { SoundSystem } from './audio/sounds.js';
+import { BuildMenu } from './ui/buildMenu.js';
+import { Toolbar } from './ui/toolbar.js';
+import { InfoPanel } from './ui/infoPanel.js';
+
+// --- Renderer ---
+const canvas = document.getElementById('game-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.setClearColor(0x87ceeb);
+
+// --- Scene ---
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x87ceeb, 80, 200);
+
+// --- Lights ---
+const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambient);
+
+const sun = new THREE.DirectionalLight(0xfff4e0, 1.0);
+sun.position.set(15, 25, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -70;
+sun.shadow.camera.right = 70;
+sun.shadow.camera.top = 70;
+sun.shadow.camera.bottom = -70;
+scene.add(sun);
+
+// --- Camera ---
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.5, 500);
+const camCtrl = new CameraController(camera, canvas);
+
+// --- Core systems ---
+const world = new World(scene);
+const economy = new Economy();
+const crowd = new CrowdSystem(scene, world);
+const dayNight = new DayNightCycle(scene, sun);
+const sounds = new SoundSystem();
+const infoPanel = new InfoPanel();
+const festival = new FestivalManager(economy, world, dayNight);
+const objectives = new ObjectiveManager(economy);
+
+// --- Raycaster ---
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const intersectPoint = new THREE.Vector3();
+
+function getGroundPoint(clientX, clientY) {
+  pointer.x = (clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  raycaster.ray.intersectPlane(groundPlane, intersectPoint);
+  return intersectPoint;
+}
+
+// --- State ---
+let currentTool = 'build';
+let selectedBuilding = null;
+let placementRotation = 0;
+let selectedEntry = null;
+let pointerDownPos = null;
+let pointerMoved = false;
+
+// --- UI references ---
+const festivalPanel = document.getElementById('festival-panel');
+const objectivesPanel = document.getElementById('objectives-panel');
+const resultsOverlay = document.getElementById('results-overlay');
+const festivalLive = document.getElementById('festival-live');
+const festivalControls = document.getElementById('festival-controls');
+const toolbarEl = document.getElementById('toolbar');
+
+// --- UI ---
+const buildMenu = new BuildMenu(item => {
+  selectedBuilding = item;
+  world.clearGhost();
+  sounds.playSelect();
+}, economy);
+
+const toolbar = new Toolbar(tool => {
+  if (festival.phase === 'hosting' && (tool === 'build' || tool === 'bulldoze')) return;
+  currentTool = tool;
+  world.clearGhost();
+  infoPanel.hide();
+  selectedEntry = null;
+
+  if (tool === 'build') {
+    buildMenu.show();
+  } else {
+    buildMenu.hide();
+  }
+});
+
+buildMenu.show();
+
+// --- Festival UI helpers ---
+function updateFestivalPanel() {
+  const att = festival.calculateExpectedAttendance();
+  const rev = att * festival.ticketPrice;
+  const exp = festival.calculateExpenses();
+  document.getElementById('price-display').textContent = `$${festival.ticketPrice}`;
+  document.getElementById('fest-attendance').textContent = att.toLocaleString();
+  document.getElementById('fest-revenue').textContent = `$${rev.toLocaleString()}`;
+  document.getElementById('fest-expenses').textContent = `$${exp.toLocaleString()}`;
+  const hostBtn = document.getElementById('host-btn');
+  const hostHint = document.getElementById('host-hint');
+  if (festival.canHostFestival()) {
+    hostBtn.disabled = false;
+    hostHint.textContent = `Net estimate: $${(rev - exp).toLocaleString()}`;
+  } else {
+    hostBtn.disabled = true;
+    hostHint.textContent = 'Place at least one stage to host';
+  }
+}
+
+function renderObjectives() {
+  const list = document.getElementById('objectives-list');
+  list.innerHTML = '';
+  for (const obj of OBJECTIVES) {
+    const done = objectives.completed.has(obj.id);
+    const item = document.createElement('div');
+    item.className = 'objective-item' + (done ? ' completed' : '');
+    item.innerHTML = `
+      <span class="obj-icon">${obj.icon}</span>
+      <div class="obj-info">
+        <div class="obj-name">${done ? '✅ ' : ''}${obj.name}</div>
+        <div class="obj-desc">${obj.desc}</div>
+      </div>
+      <span class="obj-reward">${done ? 'Done' : `+$${obj.reward.toLocaleString()}`}</span>
+    `;
+    list.appendChild(item);
+  }
+}
+
+function showResults(r) {
+  document.getElementById('res-season').textContent = r.season;
+  document.getElementById('res-grade').textContent = festival.getGrade(r.satisfaction);
+  document.getElementById('sat-fill').style.width = r.satisfaction + '%';
+  document.getElementById('res-sat-pct').textContent = r.satisfaction + '%';
+  document.getElementById('res-attendance').textContent = r.attendance.toLocaleString();
+  document.getElementById('res-tickets').textContent = `$${r.ticketRevenue.toLocaleString()}`;
+  document.getElementById('res-vendor').textContent = `$${r.vendorRevenue.toLocaleString()}`;
+  document.getElementById('res-expenses').textContent = `-$${r.expenses.toLocaleString()}`;
+  const profitEl = document.getElementById('res-profit');
+  profitEl.textContent = (r.netProfit >= 0 ? '+' : '') + `$${r.netProfit.toLocaleString()}`;
+  profitEl.style.color = r.netProfit >= 0 ? 'var(--money)' : 'var(--accent)';
+  document.getElementById('res-rep').textContent = `+${r.reputationEarned} ⭐`;
+  resultsOverlay.classList.remove('hidden');
+}
+
+function updateLiveHUD() {
+  document.getElementById('live-day').textContent = festival.currentFestivalDay;
+  document.getElementById('live-total').textContent = festival.festivalDaysTotal;
+  document.getElementById('live-vendor').textContent = festival.vendorRevenue.toLocaleString();
+}
+
+function updateSeasonDisplay() {
+  const el = document.getElementById('season-display');
+  if (el) el.textContent = `📅 Season ${festival.season}`;
+}
+
+function checkObjectives() {
+  const prevRep = economy.reputation;
+  const newlyDone = objectives.check(festival, world);
+  for (const obj of newlyDone) {
+    sounds.playObjectiveComplete();
+    showToast(`🏆 ${obj.name} — +$${obj.reward.toLocaleString()}`);
+  }
+  if (economy.reputation > prevRep) {
+    buildMenu.refresh();
+  }
+}
+
+let lastUnlockRep = economy.reputation;
+function checkUnlocks() {
+  const rep = economy.reputation;
+  if (rep <= lastUnlockRep) return;
+  const allItems = Object.values(CATEGORIES).flatMap(c => c.items);
+  const newlyUnlocked = allItems.filter(it =>
+    (it.requiredRep || 0) > lastUnlockRep && (it.requiredRep || 0) <= rep
+  );
+  if (newlyUnlocked.length > 0) {
+    const names = newlyUnlocked.slice(0, 3).map(it => it.name).join(', ');
+    const extra = newlyUnlocked.length > 3 ? ` +${newlyUnlocked.length - 3} more` : '';
+    showToast(`🔓 Unlocked: ${names}${extra}`);
+    sounds.playUnlock();
+  }
+  lastUnlockRep = rep;
+}
+
+// --- Festival phase changes ---
+festival.onPhaseChange = (phase) => {
+  if (phase === 'hosting') {
+    festivalPanel.classList.add('hidden');
+    festivalControls.classList.add('hidden');
+    festivalLive.classList.remove('hidden');
+    toolbarEl.classList.add('hosting');
+    buildMenu.hide();
+    if (currentTool === 'build' || currentTool === 'bulldoze') {
+      currentTool = 'select';
+      toolbar.setTool('select');
+    }
+    sounds.stopForestAmbience();
+    sounds.startFestivalAmbience();
+    sounds.playPlace();
+  } else if (phase === 'results') {
+    festivalLive.classList.add('hidden');
+    sounds.stopFestivalAmbience();
+    sounds.playVictoryFanfare();
+    showResults(festival.results);
+    checkObjectives();
+  } else if (phase === 'planning') {
+    resultsOverlay.classList.add('hidden');
+    festivalControls.classList.remove('hidden');
+    toolbarEl.classList.remove('hosting');
+    sounds.startForestAmbience();
+    updateSeasonDisplay();
+    economy.updateHUD();
+    checkUnlocks();
+    buildMenu.refresh();
+  }
+};
+
+// --- Festival event listeners ---
+document.getElementById('festival-btn').addEventListener('click', () => {
+  objectivesPanel.classList.add('hidden');
+  festivalPanel.classList.toggle('hidden');
+  if (!festivalPanel.classList.contains('hidden')) {
+    updateFestivalPanel();
+  }
+});
+
+document.getElementById('close-festival').addEventListener('click', () => {
+  festivalPanel.classList.add('hidden');
+});
+
+document.getElementById('price-down').addEventListener('click', () => {
+  festival.ticketPrice = Math.max(10, festival.ticketPrice - 10);
+  updateFestivalPanel();
+  sounds.playSelect();
+});
+
+document.getElementById('price-up').addEventListener('click', () => {
+  festival.ticketPrice = Math.min(200, festival.ticketPrice + 10);
+  updateFestivalPanel();
+  sounds.playSelect();
+});
+
+document.getElementById('host-btn').addEventListener('click', () => {
+  if (festival.startFestival()) {
+    festivalPanel.classList.add('hidden');
+  }
+});
+
+document.getElementById('objectives-btn').addEventListener('click', () => {
+  festivalPanel.classList.add('hidden');
+  objectivesPanel.classList.toggle('hidden');
+  if (!objectivesPanel.classList.contains('hidden')) {
+    renderObjectives();
+  }
+});
+
+document.getElementById('close-objectives').addEventListener('click', () => {
+  objectivesPanel.classList.add('hidden');
+});
+
+document.getElementById('continue-btn').addEventListener('click', () => {
+  festival.continueToPlanning();
+});
+
+// --- Pointer events ---
+canvas.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || e.shiftKey) return;
+  pointerDownPos = { x: e.clientX, y: e.clientY };
+  pointerMoved = false;
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (pointerDownPos) {
+    const dx = e.clientX - pointerDownPos.x;
+    const dy = e.clientY - pointerDownPos.y;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) pointerMoved = true;
+  }
+
+  if (currentTool === 'build' && selectedBuilding && festival.phase === 'planning') {
+    const pt = getGroundPoint(e.clientX, e.clientY);
+    const [gx, gz] = world.snapToGrid(pt.x, pt.z);
+    world.showGhost(gx, gz, selectedBuilding, placementRotation);
+  }
+});
+
+canvas.addEventListener('pointerup', e => {
+  if (e.button !== 0 || pointerMoved) {
+    pointerDownPos = null;
+    return;
+  }
+  pointerDownPos = null;
+
+  const pt = getGroundPoint(e.clientX, e.clientY);
+  const [gx, gz] = world.snapToGrid(pt.x, pt.z);
+
+  if (currentTool === 'build' && selectedBuilding && festival.phase === 'planning') {
+    if (!economy.canAfford(selectedBuilding.cost)) {
+      sounds.playError();
+      showToast('Not enough money!');
+      return;
+    }
+    const entry = world.place(gx, gz, selectedBuilding, placementRotation);
+    if (entry) {
+      economy.spend(selectedBuilding.cost);
+      sounds.playPlace();
+      sounds.updateMusicIntensity(economy.crowdSize);
+    } else {
+      sounds.playError();
+      showToast("Can't place here!");
+    }
+  } else if (currentTool === 'bulldoze' && festival.phase === 'planning') {
+    const entry = world.findAtGrid(gx, gz);
+    if (entry) {
+      world.remove(entry);
+      const refund = Math.floor(entry.data.cost * 0.5);
+      economy.earn(refund);
+      sounds.playBulldoze();
+      showToast(`Refund: $${refund.toLocaleString()}`);
+    }
+  } else if (currentTool === 'select') {
+    const entry = world.findAtGrid(gx, gz);
+    if (entry) {
+      selectedEntry = entry;
+      infoPanel.show(entry);
+      sounds.playSelect();
+    } else {
+      infoPanel.hide();
+      selectedEntry = null;
+    }
+  } else if (currentTool === 'rotate') {
+    const entry = world.findAtGrid(gx, gz);
+    if (entry) {
+      entry.rotation += Math.PI / 2;
+      entry.mesh.rotation.y = entry.rotation;
+      sounds.playSelect();
+    }
+  }
+});
+
+// --- Keyboard ---
+window.addEventListener('keydown', e => {
+  if (e.key === 'r' || e.key === 'R') {
+    placementRotation += Math.PI / 2;
+  } else if (e.key === 'Escape') {
+    buildMenu.clearSelection();
+    selectedBuilding = null;
+    world.clearGhost();
+    infoPanel.hide();
+    festivalPanel.classList.add('hidden');
+    objectivesPanel.classList.add('hidden');
+  } else if (e.key === '1') toolbar.setTool('select');
+  else if (e.key === '2' && festival.phase === 'planning') toolbar.setTool('build');
+  else if (e.key === '3' && festival.phase === 'planning') toolbar.setTool('bulldoze');
+  else if (e.key === '4') toolbar.setTool('rotate');
+  else if (e.key === 'f' || e.key === 'F') {
+    if (festival.phase === 'planning') {
+      document.getElementById('festival-btn').click();
+    }
+  } else if (e.key === 'g' || e.key === 'G') {
+    document.getElementById('objectives-btn').click();
+  }
+});
+
+// --- Toast notifications ---
+function showToast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }, 1500);
+}
+
+// --- Timers ---
+let lastVendorTick = 0;
+const VENDOR_TICK_INTERVAL = 2000;
+let lastSave = 0;
+const SAVE_INTERVAL = 30000;
+let lastTime = 0;
+let musicStarted = false;
+let lastCheerTime = 0;
+let nextCheerDelay = 15000 + Math.random() * 5000;
+
+// --- Save slot system ---
+let activeSlot = -1;
+
+function loadSlotData(slot) {
+  const saved = loadGame(slot);
+  if (saved) {
+    economy.loadJSON(saved.economy);
+    if (saved.buildings) {
+      for (const b of saved.buildings) {
+        const building = getBuildingById(b.id);
+        if (building) world.place(b.x, b.z, building, b.rotation || 0);
+      }
+    }
+    if (saved.timeOfDay !== undefined) dayNight.timeOfDay = saved.timeOfDay;
+    if (saved.festival) festival.loadJSON(saved.festival);
+    if (saved.objectives) objectives.loadJSON(saved.objectives);
+    lastUnlockRep = economy.reputation;
+    updateSeasonDisplay();
+  }
+}
+
+function timeAgo(ts) {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function renderSaveSlots() {
+  const container = document.getElementById('save-slots');
+  if (!container) return;
+  const slots = listSlots();
+  container.innerHTML = '';
+  for (const slot of slots) {
+    const el = document.createElement('div');
+    el.className = 'save-slot ' + (slot.empty ? 'empty' : 'occupied');
+    if (slot.empty) {
+      el.innerHTML = `
+        <div class="slot-num">${slot.index + 1}</div>
+        <div class="slot-info">Empty Slot</div>
+        <div class="slot-action">New Game</div>
+      `;
+      el.addEventListener('click', () => startSlot(slot.index, true));
+    } else {
+      el.innerHTML = `
+        <button class="slot-delete" title="Delete save">&times;</button>
+        <div class="slot-num">${slot.index + 1}</div>
+        <div class="slot-info">
+          <div class="slot-title">Season ${slot.season}</div>
+          <div class="slot-meta">
+            <span class="s-money">$${slot.money.toLocaleString()}</span>
+            &nbsp;·&nbsp;
+            <span class="s-rep">⭐ ${slot.reputation}</span>
+            &nbsp;·&nbsp;
+            ${timeAgo(slot.timestamp)}
+          </div>
+        </div>
+        <div class="slot-action">Continue</div>
+      `;
+      el.addEventListener('click', (e) => {
+        if (e.target.classList.contains('slot-delete')) return;
+        startSlot(slot.index, false);
+      });
+      el.querySelector('.slot-delete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteSave(slot.index);
+        renderSaveSlots();
+      });
+    }
+    container.appendChild(el);
+  }
+}
+
+function startSlot(slot, isNew) {
+  activeSlot = slot;
+  if (!isNew) loadSlotData(slot);
+  economy.updateHUD();
+  updateSeasonDisplay();
+  dismissLoadingScreen();
+}
+
+function dismissLoadingScreen() {
+  const saveModal = document.getElementById('save-modal');
+  if (saveModal) saveModal.classList.add('hidden');
+  const loadingScreen = document.getElementById('loading-screen');
+  if (loadingScreen) {
+    loadingScreen.classList.add('fade-out');
+    setTimeout(() => loadingScreen.remove(), 800);
+  }
+  sounds.startAmbientMusic(0);
+  sounds.startForestAmbience();
+  musicStarted = true;
+}
+
+let audioEnabled = true;
+
+// --- Menu sign buttons ---
+document.getElementById('menu-play').addEventListener('click', () => {
+  const slots = listSlots();
+  const occupied = slots.filter(s => !s.empty);
+  if (occupied.length === 0) {
+    startSlot(0, true);
+  } else if (occupied.length === 1) {
+    startSlot(occupied[0].index, false);
+  } else {
+    openSaveModal();
+  }
+});
+
+document.getElementById('menu-saves').addEventListener('click', () => {
+  openSaveModal();
+});
+
+document.getElementById('menu-audio').addEventListener('click', () => {
+  audioEnabled = !audioEnabled;
+  const btn = document.getElementById('menu-audio');
+  if (audioEnabled) {
+    btn.textContent = 'AUDIO';
+    btn.classList.remove('audio-off');
+    sounds.setMasterVolume(1);
+  } else {
+    btn.textContent = 'MUTED';
+    btn.classList.add('audio-off');
+    sounds.setMasterVolume(0);
+  }
+});
+
+function openSaveModal() {
+  renderSaveSlots();
+  document.getElementById('save-modal').classList.remove('hidden');
+}
+
+document.getElementById('close-saves').addEventListener('click', () => {
+  document.getElementById('save-modal').classList.add('hidden');
+});
+
+// --- Resize ---
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --- Game loop ---
+function animate(time) {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min((time - lastTime) / 1000, 0.1);
+  lastTime = time;
+
+  // Day/night cycle
+  dayNight.update(dt);
+
+  // Festival update
+  festival.update(dt);
+
+  // Vendor income during hosting
+  if (festival.phase === 'hosting' && time - lastVendorTick > VENDOR_TICK_INTERVAL) {
+    festival.vendorTick();
+    updateLiveHUD();
+    lastVendorTick = time;
+  }
+
+  // Crowd simulation
+  let targetNPCs = 0;
+  if (festival.phase === 'hosting') {
+    targetNPCs = Math.min(Math.floor(festival.festivalAttendance * 0.4), 500);
+  }
+  crowd.update(dt, targetNPCs);
+
+  // Crowd cheers during hosting
+  if (festival.phase === 'hosting' && time - lastCheerTime > nextCheerDelay) {
+    sounds.playCrowdCheer();
+    lastCheerTime = time;
+    nextCheerDelay = 15000 + Math.random() * 5000;
+  }
+
+  // Start ambient music once buildings exist
+  if (!musicStarted && world.placed.length > 0) {
+    sounds.startAmbientMusic(economy.crowdSize);
+    musicStarted = true;
+  }
+
+  // Auto-save to active slot
+  if (activeSlot >= 0 && time - lastSave > SAVE_INTERVAL) {
+    saveGame(activeSlot, {
+      economy: economy.toJSON(),
+      buildings: world.toJSON(),
+      timeOfDay: dayNight.timeOfDay,
+      festival: festival.toJSON(),
+      objectives: objectives.toJSON()
+    });
+    lastSave = time;
+  }
+
+  renderer.render(scene, camera);
+}
+
+requestAnimationFrame(animate);

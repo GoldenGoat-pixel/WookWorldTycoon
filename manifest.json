@@ -1,0 +1,11 @@
+{
+  "name": "WookWorld Tycoon",
+  "short_name": "WookWorld",
+  "description": "Build and customize your dream festival grounds",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "icons": []
+}
