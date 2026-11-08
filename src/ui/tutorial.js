@@ -3,117 +3,129 @@ const TUTORIAL_KEY = 'wookworld_tutorial_done';
 const STEPS = [
   {
     title: 'Welcome to WookWorld Tycoon!',
-    text: 'You\'re a festival promoter building your dream music festival from the ground up. Let\'s walk through everything you need to know.',
+    text: "You're a festival promoter building your dream music festival from the ground up. This tutorial will walk you through everything — hands on!",
     target: null,
-    position: 'center'
+    position: 'center',
+    type: 'info'
   },
   {
     title: 'Your Money & Stats',
-    text: 'This is your HUD. You start with $50,000. Keep an eye on your money 💰, reputation ⭐, crowd size 👥, and current season 📅.',
+    text: 'This is your HUD. You start with $50,000.\n\n💰 Money — spend it on buildings\n⭐ Reputation — earned from festivals, unlocks new stuff\n👥 Crowd — how many people at your festival\n📅 Season — each festival is one season',
     target: '#hud-top',
-    position: 'below'
+    position: 'below',
+    type: 'info'
   },
   {
     title: 'The Build Menu',
-    text: 'This is where you build your festival. Pick a structure and tap the ground to place it. Each item shows its cost and what it does.',
+    text: "This is where you build your festival. It has 5 categories: Stages, Facilities, Camping, Decor, and Paths & Fences.\n\nLet's start building! Select the Small Stage ($2,000).",
     target: '#build-menu',
-    position: 'right'
+    position: 'right',
+    type: 'action',
+    waitFor: 'select_small_stage'
   },
   {
-    title: 'Building Categories',
-    text: 'There are 5 categories:\n\n🎤 Stages — attract crowds and hold performances\n🍔 Facilities — food, bars, restrooms, medical, merch\n⛺ Camping — tents, RVs, campfires, showers\n🎨 Decor — lights, banners, sculptures, fountains\n🏗️ Paths & Fences — walkways, gates, parking',
+    title: 'Place Your Stage!',
+    text: 'Now tap anywhere on the green field to place your stage. This is where bands will perform!',
+    target: '#game-canvas',
+    position: 'center',
+    type: 'action',
+    waitFor: 'place_building'
+  },
+  {
+    title: 'Nice! Now Add Facilities',
+    text: "Stages attract crowds, but they need food! Click the \"Facilities\" tab in the Build Menu.",
     target: '#build-categories',
-    position: 'right'
+    position: 'right',
+    type: 'action',
+    waitFor: 'switch_to_facilities'
   },
   {
-    title: 'Stages Are Key',
-    text: 'You need at least one stage to host a festival. Each stage type has a different crowd capacity. Bigger stages = more attendees = more revenue.',
-    target: null,
-    position: 'center'
-  },
-  {
-    title: 'Facilities Matter',
-    text: 'Food tents, bars, and merch stands generate vendor income during festivals. Restrooms and medical tents boost crowd satisfaction. A happy crowd = more reputation!',
-    target: null,
-    position: 'center'
+    title: 'Place a Food Tent',
+    text: 'Select the Food Tent ($1,500) and place it near your stage. Food tents generate vendor income during festivals!',
+    target: '#build-items',
+    position: 'right',
+    type: 'action',
+    waitFor: 'place_food'
   },
   {
     title: 'The Toolbar',
-    text: 'These are your tools:\n\n🔍 Select — tap a building to see its info\n🔨 Build — place new structures\n🗑️ Bulldoze — remove buildings (50% refund)\n🔄 Rotate — spin buildings 90°',
+    text: "These are your tools:\n\n🔍 Select — tap a building to see its info\n🔨 Build — place new structures\n🗑️ Bulldoze — remove buildings (50% refund)\n🔄 Rotate — spin buildings 90°\n\nKeyboard: 1–4 to switch, R to rotate before placing.",
     target: '#toolbar',
-    position: 'above'
+    position: 'above',
+    type: 'info'
   },
   {
     title: 'Camera Controls',
-    text: 'Move the camera:\n\n🖱️ Desktop: drag to pan, scroll to zoom, R to rotate placement\n📱 Mobile: one finger to pan, pinch to zoom, two fingers to pan\n\nKeyboard: WASD or arrow keys to move, Q/E to rotate view.',
+    text: '🖱️ Desktop: drag to pan, scroll to zoom\n📱 Mobile: one finger to pan, pinch to zoom, two fingers to drag\n⌨️ Keyboard: WASD / arrow keys to move',
     target: null,
-    position: 'center'
+    position: 'center',
+    type: 'info'
   },
   {
-    title: 'Plan Your Festival',
-    text: 'When you\'ve placed some buildings, tap "Plan Festival" to open the planning panel. This is where the real business happens.',
+    title: "Time to Host a Festival!",
+    text: 'You\'ve got a stage and food — that\'s enough to host! Click "🎪 Plan Festival" to open the planning panel.',
     target: '#festival-btn',
-    position: 'above'
+    position: 'below',
+    type: 'action',
+    waitFor: 'open_festival_panel'
   },
   {
     title: 'Festival Planning',
-    text: 'In the planning panel you can:\n\n💵 Set ticket price ($10–$200)\n👥 See expected attendance\n💰 Preview revenue vs. costs\n\nHigher tickets = more money but fewer people. Lower tickets = bigger crowds but less per head.',
-    target: null,
-    position: 'center'
+    text: 'Here you can:\n\n💵 Set ticket price ($10–$200) — higher price = more money but fewer people\n👥 See expected attendance based on your buildings and reputation\n💰 Preview revenue vs. operating costs\n\nWhen you\'re ready, hit "Host Festival"!',
+    target: '#festival-panel',
+    position: 'left',
+    type: 'action',
+    waitFor: 'start_festival'
   },
   {
-    title: 'Hosting a Festival',
-    text: 'Once you hit "Host Festival", the show begins! The festival runs for 3 days. During this time:\n\n• Crowds appear on your grounds\n• Vendor buildings earn income every few seconds\n• You can\'t build or bulldoze until it\'s over\n• Crowd cheers play periodically',
-    target: null,
-    position: 'center'
+    title: 'Festival in Progress!',
+    text: "Your festival is live! Watch the crowd arrive and vendor income roll in. The festival runs for 3 in-game days.\n\nYou can't build or bulldoze during a festival — just sit back and watch the show!",
+    target: '#festival-live',
+    position: 'below',
+    type: 'info'
   },
   {
     title: 'Festival Results',
-    text: 'After 3 days you get a full report:\n\n📊 Satisfaction grade (F to A+)\n🎫 Ticket revenue\n🍔 Vendor revenue\n💸 Operating costs\n💰 Net profit\n⭐ Reputation earned\n\nSatisfaction depends on food, restrooms, medical, stage variety, camping, decor, and ticket price.',
+    text: "After 3 days you'll get a full report with:\n\n📊 Satisfaction grade (F to A+)\n🎫 Ticket & vendor revenue\n💸 Operating costs\n💰 Net profit\n⭐ Reputation earned\n\nSatisfaction depends on food, restrooms, medical tents, stage variety, camping, decor, and ticket price.",
     target: null,
-    position: 'center'
+    position: 'center',
+    type: 'info'
   },
   {
-    title: 'Satisfaction Breakdown',
-    text: 'To maximize your rating:\n\n• 1 food/bar per 100 attendees\n• 1 restroom per 150 attendees\n• At least 1 medical tent\n• Multiple stage types\n• Camping for your crowd\n• Lots of decorations\n• Don\'t overprice tickets (above $100 hurts satisfaction)',
+    title: 'Boost Your Satisfaction',
+    text: 'Pro tips for a high rating:\n\n• 1 food or bar per 100 attendees\n• 1 restroom per 150 attendees\n• At least 1 medical tent\n• Build multiple stage types\n• Add camping for your crowd\n• Decorate everywhere\n• Keep tickets under $100',
     target: null,
-    position: 'center'
+    position: 'center',
+    type: 'info'
   },
   {
     title: 'Goals & Rewards',
-    text: 'Tap "Goals" to see your objectives. Complete them to earn bonus cash. Goals range from hosting your first festival to reaching 1,000 attendees and earning $100k revenue.',
+    text: 'Click "🏆 Goals" to see your objectives. Complete them to earn bonus cash!\n\nGoals range from hosting your first festival to reaching 1,000 attendees.',
     target: '#objectives-btn',
-    position: 'above'
+    position: 'below',
+    type: 'action',
+    waitFor: 'open_goals'
   },
   {
     title: 'Reputation & Unlocks',
-    text: 'Reputation ⭐ is earned after each festival based on satisfaction and attendance. As your rep grows, new buildings unlock:\n\n⭐ 5 — Acoustic Tent, Family Tent, Hammock Grove\n⭐ 10 — DJ Booth, Bar, Merch, Light Tree, RV Spot, and more\n⭐ 20 — Medical Tent, Glamping, Fountain\n⭐ 35 — VIP Lounge, Ferris Wheel\n⭐ 50 — Mega Stage',
+    text: 'Reputation ⭐ unlocks new buildings as you grow:\n\n⭐ 5 — Acoustic Tent, Family Tent, Hammock Grove\n⭐ 10 — DJ Booth, Bar, Merch Stand, RV Spot\n⭐ 20 — Medical Tent, Glamping, Fountain\n⭐ 35 — VIP Lounge, Ferris Wheel\n⭐ 50 — Mega Stage',
     target: null,
-    position: 'center'
+    position: 'center',
+    type: 'info'
   },
   {
-    title: 'Seasons',
-    text: 'Each festival is one "season." After the results screen, you advance to the next season. Your buildings stay — keep expanding and improving between festivals.',
-    target: '#season-display',
-    position: 'below'
+    title: 'Seasons & Saving',
+    text: 'Each festival is one "season." Your buildings stay between festivals — keep expanding!\n\nYour game auto-saves every 30 seconds. You have 3 save slots accessible from the main menu.',
+    target: null,
+    position: 'center',
+    type: 'info'
   },
   {
-    title: 'Auto-Save',
-    text: 'Your game auto-saves every 30 seconds to your active save slot. You have 3 save slots total — access them from the main menu\'s SAVES button.',
+    title: "You're Ready!",
+    text: "That's everything! Build stages, add facilities, host festivals, earn reputation, and unlock bigger and better structures.\n\nYou can replay this tutorial anytime from the HELP button on the main menu. Good luck, promoter! 🎪",
     target: null,
-    position: 'center'
-  },
-  {
-    title: 'Keyboard Shortcuts',
-    text: 'Quick keys for power users:\n\n1–4 — Switch tools\nR — Rotate building before placing\nF — Open festival panel\nG — Open goals\nEsc — Close panels / deselect',
-    target: null,
-    position: 'center'
-  },
-  {
-    title: 'You\'re Ready!',
-    text: 'Start by placing a Small Stage and a Food Tent, then host your first festival. Good luck, promoter! 🎪',
-    target: null,
-    position: 'center'
+    position: 'center',
+    type: 'info'
   }
 ];
 
@@ -124,6 +136,8 @@ export class Tutorial {
     this._overlay = null;
     this._tooltip = null;
     this._spotlight = null;
+    this._pollTimer = null;
+    this._gameState = null;
   }
 
   shouldRun() {
@@ -131,19 +145,29 @@ export class Tutorial {
     catch { return true; }
   }
 
-  start() {
-    if (!this.shouldRun()) return;
+  start(gameState) {
+    if (this._active) return;
+    this._gameState = gameState || this._gameState;
     this._active = true;
     this._step = 0;
     this._createUI();
     this._render();
   }
 
+  restart(gameState) {
+    this.skip();
+    try { localStorage.removeItem(TUTORIAL_KEY); } catch {}
+    setTimeout(() => this.start(gameState), 100);
+  }
+
   skip() {
     this._active = false;
+    this._stopPolling();
     this._markDone();
     this._removeUI();
   }
+
+  isActive() { return this._active; }
 
   _markDone() {
     try { localStorage.setItem(TUTORIAL_KEY, '1'); } catch {}
@@ -196,10 +220,6 @@ export class Tutorial {
     document.body.appendChild(this._overlay);
     document.body.appendChild(this._spotlight);
     document.body.appendChild(this._tooltip);
-
-    this._overlay.addEventListener('click', (e) => {
-      if (e.target === this._overlay) this._advance();
-    });
   }
 
   _removeUI() {
@@ -212,6 +232,7 @@ export class Tutorial {
   }
 
   _advance() {
+    this._stopPolling();
     this._step++;
     if (this._step >= STEPS.length) {
       this._active = false;
@@ -222,14 +243,31 @@ export class Tutorial {
     this._render();
   }
 
+  _stopPolling() {
+    if (this._pollTimer) {
+      clearInterval(this._pollTimer);
+      this._pollTimer = null;
+    }
+  }
+
   _render() {
     const step = STEPS[this._step];
     this._titleEl.textContent = step.title;
     this._textEl.textContent = step.text;
     this._counter.textContent = `${this._step + 1} / ${STEPS.length}`;
 
-    this._nextBtn.textContent = this._step === STEPS.length - 1 ? 'Let\'s Go!' : 'Next';
-    this._skipBtn.style.display = this._step === STEPS.length - 1 ? 'none' : '';
+    const isLast = this._step === STEPS.length - 1;
+    const isAction = step.type === 'action';
+
+    this._nextBtn.textContent = isLast ? "Let's Go!" : 'Next';
+    this._nextBtn.style.display = isAction ? 'none' : '';
+    this._skipBtn.style.display = isLast ? 'none' : '';
+
+    if (isAction) {
+      this._overlay.classList.add('action-mode');
+    } else {
+      this._overlay.classList.remove('action-mode');
+    }
 
     if (step.target) {
       const el = document.querySelector(step.target);
@@ -241,17 +279,49 @@ export class Tutorial {
         this._spotlight.style.top = (rect.top - pad) + 'px';
         this._spotlight.style.width = (rect.width + pad * 2) + 'px';
         this._spotlight.style.height = (rect.height + pad * 2) + 'px';
-
         this._positionTooltip(rect, step.position);
-        return;
+
+        if (isAction) {
+          this._makeTargetClickable(el, rect, pad);
+        }
+      } else {
+        this._spotlight.style.display = 'none';
+        this._centerTooltip();
       }
+    } else {
+      this._spotlight.style.display = 'none';
+      this._centerTooltip();
     }
 
-    this._spotlight.style.display = 'none';
+    if (isAction && step.waitFor) {
+      this._startPolling(step.waitFor);
+    }
+  }
+
+  _makeTargetClickable(el, rect, pad) {
+    this._spotlight.style.pointerEvents = 'none';
+    this._overlay.style.pointerEvents = 'none';
+    this._tooltip.style.pointerEvents = 'auto';
+
+    const cutout = `polygon(
+      0% 0%, 0% 100%, 100% 100%, 100% 0%, 0% 0%,
+      ${rect.left - pad}px ${rect.top - pad}px,
+      ${rect.right + pad}px ${rect.top - pad}px,
+      ${rect.right + pad}px ${rect.bottom + pad}px,
+      ${rect.left - pad}px ${rect.bottom + pad}px,
+      ${rect.left - pad}px ${rect.top - pad}px
+    )`;
+    this._overlay.style.clipPath = cutout;
+    this._overlay.style.pointerEvents = 'auto';
+  }
+
+  _centerTooltip() {
     this._tooltip.style.left = '50%';
     this._tooltip.style.top = '50%';
     this._tooltip.style.transform = 'translate(-50%, -50%)';
     this._tooltip.removeAttribute('data-pos');
+    this._overlay.style.clipPath = '';
+    this._overlay.style.pointerEvents = '';
   }
 
   _positionTooltip(rect, position) {
@@ -262,16 +332,21 @@ export class Tutorial {
 
     tt.style.transform = '';
     tt.setAttribute('data-pos', position);
+    this._overlay.style.clipPath = '';
+    this._overlay.style.pointerEvents = '';
+
+    if (position === 'center') {
+      this._centerTooltip();
+      return;
+    }
 
     if (position === 'below') {
-      let left = rect.left + rect.width / 2;
-      left = Math.max(200, Math.min(vw - 200, left));
+      let left = Math.max(200, Math.min(vw - 200, rect.left + rect.width / 2));
       tt.style.left = left + 'px';
       tt.style.top = (rect.bottom + gap) + 'px';
       tt.style.transform = 'translateX(-50%)';
     } else if (position === 'above') {
-      let left = rect.left + rect.width / 2;
-      left = Math.max(200, Math.min(vw - 200, left));
+      let left = Math.max(200, Math.min(vw - 200, rect.left + rect.width / 2));
       tt.style.left = left + 'px';
       tt.style.top = (rect.top - gap) + 'px';
       tt.style.transform = 'translate(-50%, -100%)';
@@ -284,5 +359,43 @@ export class Tutorial {
       tt.style.top = Math.min(vh - 100, rect.top + rect.height / 2) + 'px';
       tt.style.transform = 'translateY(-50%)';
     }
+  }
+
+  _startPolling(waitFor) {
+    this._stopPolling();
+    const gs = this._gameState;
+    if (!gs) return;
+
+    const startPlaced = gs.getPlacedCount();
+
+    this._pollTimer = setInterval(() => {
+      let done = false;
+      switch (waitFor) {
+        case 'select_small_stage':
+          done = gs.getSelectedBuilding()?.id === 'small_stage';
+          break;
+        case 'place_building':
+          done = gs.getPlacedCount() > startPlaced;
+          break;
+        case 'switch_to_facilities': {
+          const active = document.querySelector('#build-categories .cat-btn.active');
+          done = active?.dataset.category === 'facilities';
+          break;
+        }
+        case 'place_food':
+          done = gs.getPlacedCount() > startPlaced;
+          break;
+        case 'open_festival_panel':
+          done = !document.getElementById('festival-panel').classList.contains('hidden');
+          break;
+        case 'start_festival':
+          done = gs.getFestivalPhase() === 'hosting';
+          break;
+        case 'open_goals':
+          done = !document.getElementById('objectives-panel').classList.contains('hidden');
+          break;
+      }
+      if (done) this._advance();
+    }, 300);
   }
 }

@@ -51,8 +51,15 @@ const crowd = new CrowdSystem(scene, world);
 const dayNight = new DayNightCycle(scene, sun);
 const sounds = new SoundSystem();
 const infoPanel = new InfoPanel();
-const tutorial = new Tutorial();
 const festival = new FestivalManager(economy, world, dayNight);
+
+const gameState = {
+  getPlacedCount: () => world.placed.length,
+  getSelectedBuilding: () => selectedBuilding,
+  getFestivalPhase: () => festival.phase
+};
+
+const tutorial = new Tutorial();
 const objectives = new ObjectiveManager(economy);
 
 // --- Raycaster ---
@@ -489,7 +496,7 @@ function startSlot(slot, isNew) {
   updateSeasonDisplay();
   dismissLoadingScreen();
   if (isNew && tutorial.shouldRun()) {
-    setTimeout(() => tutorial.start(), 900);
+    setTimeout(() => tutorial.start(gameState), 900);
   }
 }
 
@@ -523,6 +530,17 @@ document.getElementById('menu-play').addEventListener('click', () => {
 
 document.getElementById('menu-saves').addEventListener('click', () => {
   openSaveModal();
+});
+
+document.getElementById('menu-help').addEventListener('click', () => {
+  const slots = listSlots();
+  const occupied = slots.filter(s => !s.empty);
+  if (occupied.length > 0) {
+    startSlot(occupied[0].index, false);
+  } else {
+    startSlot(0, true);
+  }
+  setTimeout(() => tutorial.restart(gameState), 600);
 });
 
 document.getElementById('menu-audio').addEventListener('click', () => {

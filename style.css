@@ -71,10 +71,12 @@
 #menu-play  { background-position: 0 100%; }
 #menu-saves { background-position: 0 33.33%; }
 #menu-audio { background-position: 0 0%; }
+#menu-help  { background-position: 0 66.67%; }
 
 .sign-1 { animation: signBob1 3s ease-in-out 1s infinite; }
 .sign-2 { animation: signBob2 3s ease-in-out 1.5s infinite; }
 .sign-3 { animation: signBob3 3s ease-in-out 2s infinite; }
+.sign-4 { animation: signBob1 3s ease-in-out 2.5s infinite; }
 
 @keyframes signBob1 {
   0%, 100% { transform: scale(1); }
@@ -951,6 +953,15 @@ html, body {
 #tutorial-next:hover {
   background: linear-gradient(135deg, #ff5a7a, #e94560);
   transform: scale(1.03);
+}
+
+#tutorial-overlay.action-mode #tutorial-spotlight {
+  animation: tutorialPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes tutorialPulse {
+  0%, 100% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6), 0 0 15px rgba(233, 69, 96, 0.4); }
+  50% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6), 0 0 30px rgba(233, 69, 96, 0.8); }
 }
 
 @media (max-width: 600px) {
