@@ -12,6 +12,7 @@ import { SoundSystem } from './audio/sounds.js';
 import { BuildMenu } from './ui/buildMenu.js';
 import { Toolbar } from './ui/toolbar.js';
 import { InfoPanel } from './ui/infoPanel.js';
+import { Tutorial } from './ui/tutorial.js';
 
 // --- Renderer ---
 const canvas = document.getElementById('game-canvas');
@@ -50,6 +51,7 @@ const crowd = new CrowdSystem(scene, world);
 const dayNight = new DayNightCycle(scene, sun);
 const sounds = new SoundSystem();
 const infoPanel = new InfoPanel();
+const tutorial = new Tutorial();
 const festival = new FestivalManager(economy, world, dayNight);
 const objectives = new ObjectiveManager(economy);
 
@@ -486,6 +488,9 @@ function startSlot(slot, isNew) {
   economy.updateHUD();
   updateSeasonDisplay();
   dismissLoadingScreen();
+  if (isNew && tutorial.shouldRun()) {
+    setTimeout(() => tutorial.start(), 900);
+  }
 }
 
 function dismissLoadingScreen() {

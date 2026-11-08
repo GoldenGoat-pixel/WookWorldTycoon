@@ -857,3 +857,123 @@ html, body {
     padding: 20px;
   }
 }
+
+/* Tutorial overlay */
+#tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 9000;
+}
+
+#tutorial-spotlight {
+  position: fixed;
+  z-index: 9001;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+#tutorial-tooltip {
+  position: fixed;
+  z-index: 9002;
+  max-width: 380px;
+  width: 90vw;
+}
+
+#tutorial-inner {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 2px solid #e94560;
+  border-radius: 16px;
+  padding: 20px 24px;
+  color: #eee;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(233,69,96,0.2);
+}
+
+#tutorial-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffcc00;
+  margin-bottom: 10px;
+}
+
+#tutorial-text {
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-line;
+  color: #ddd;
+  margin-bottom: 14px;
+}
+
+#tutorial-counter {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 12px;
+}
+
+#tutorial-btns {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#tutorial-skip {
+  background: transparent;
+  border: 1px solid #555;
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: #999;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+#tutorial-skip:hover {
+  border-color: #888;
+  color: #ccc;
+}
+
+#tutorial-next {
+  background: linear-gradient(135deg, #e94560, #c23152);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 24px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex: 1;
+  max-width: 160px;
+}
+
+#tutorial-next:hover {
+  background: linear-gradient(135deg, #ff5a7a, #e94560);
+  transform: scale(1.03);
+}
+
+@media (max-width: 600px) {
+  #tutorial-tooltip {
+    max-width: 92vw;
+  }
+
+  #tutorial-tooltip[data-pos="left"],
+  #tutorial-tooltip[data-pos="right"] {
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  #tutorial-inner {
+    padding: 16px 18px;
+  }
+
+  #tutorial-title {
+    font-size: 16px;
+  }
+
+  #tutorial-text {
+    font-size: 13px;
+  }
+}
