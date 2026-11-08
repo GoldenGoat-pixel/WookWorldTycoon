@@ -5,7 +5,7 @@ export class DayNightCycle {
     this.scene = scene;
     this.sun = sun;
     this.timeOfDay = 0.35; // Start at late morning (0=midnight, 0.5=noon, 1=midnight)
-    this.speed = 0.008;     // Full day in ~125 seconds
+    this.speed = 0.002;     // Full day in ~8 minutes
     this.paused = false;
 
     // Store original colors
@@ -17,19 +17,15 @@ export class DayNightCycle {
     // Stars
     this._createStars();
 
-    // Create time display
+    // Create time display inside the HUD top bar
     this._timeEl = document.createElement('div');
     this._timeEl.id = 'time-display';
-    this._timeEl.style.cssText = `
-      position:fixed; top:12px; right:16px;
-      background:rgba(20,20,40,0.92);
-      border:1px solid rgba(255,255,255,0.1);
-      border-radius:8px; padding:6px 14px;
-      font-size:15px; font-weight:600;
-      backdrop-filter:blur(8px);
-      color:#eee; z-index:10;
-    `;
-    document.body.appendChild(this._timeEl);
+    const hudTop = document.getElementById('hud-top');
+    if (hudTop) {
+      hudTop.appendChild(this._timeEl);
+    } else {
+      document.body.appendChild(this._timeEl);
+    }
   }
 
   _createStars() {
