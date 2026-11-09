@@ -865,7 +865,13 @@ html, body {
 
   #festival-live {
     top: max(100px, calc(env(safe-area-inset-top) + 90px));
-    gap: 8px;
+    gap: 6px;
+  }
+
+  #festival-live .live-item {
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 6px;
   }
 
   #results-card {
