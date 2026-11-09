@@ -119,7 +119,7 @@ export class CameraController {
         this.camera.getWorldDirection(right).cross(this.camera.up).normalize();
         const forward = new THREE.Vector3();
         forward.copy(right).cross(new THREE.Vector3(0, 1, 0)).normalize();
-        this.target.addScaledVector(right, dx * panSpeed);
+        this.target.addScaledVector(right, -dx * panSpeed);
         this.target.addScaledVector(forward, -dy * panSpeed);
         this.update();
         return;
