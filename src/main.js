@@ -14,6 +14,9 @@ import { Toolbar } from './ui/toolbar.js';
 import { InfoPanel } from './ui/infoPanel.js';
 import { Tutorial } from './ui/tutorial.js';
 
+// --- Orientation lock (mobile) ---
+try { screen.orientation.lock('landscape').catch(() => {}); } catch (_) {}
+
 // --- Renderer ---
 const canvas = document.getElementById('game-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
