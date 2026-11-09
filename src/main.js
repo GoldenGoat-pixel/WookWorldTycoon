@@ -579,13 +579,9 @@ function dismissLoadingScreen() {
   musicStarted = true;
 }
 
-// Always show main menu on fresh page load / restore from bfcache
-window.addEventListener('pageshow', () => {
-  const loadingScreen = document.getElementById('loading-screen');
-  if (loadingScreen) {
-    loadingScreen.style.display = '';
-    loadingScreen.classList.remove('fade-out');
-  }
+// Force full reload when restored from bfcache (app reopen)
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) location.reload();
 });
 
 let audioEnabled = true;
@@ -630,6 +626,21 @@ document.getElementById('menu-audio').addEventListener('click', () => {
     btn.classList.add('audio-off');
     sounds.setMasterVolume(0);
   }
+});
+
+// --- Main menu button (in-game) ---
+document.getElementById('main-menu-btn').addEventListener('click', () => {
+  // Save before returning to menu
+  if (activeSlot >= 0) {
+    saveGame(activeSlot, {
+      economy: economy.toJSON(),
+      buildings: world.toJSON(),
+      timeOfDay: dayNight.timeOfDay,
+      festival: festival.toJSON(),
+      objectives: objectives.toJSON()
+    });
+  }
+  location.reload();
 });
 
 function openSaveModal() {
