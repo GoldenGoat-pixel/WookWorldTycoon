@@ -598,7 +598,7 @@ html, body {
 
   .menu-signs {
     right: 3%;
-    top: 50%;
+    top: 40%;
     transform: translateY(-50%);
     gap: 3px;
   }
