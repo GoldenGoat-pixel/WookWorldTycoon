@@ -463,15 +463,15 @@ html, body {
   }
 
   #money-display { order: 1; }
-  #season-display { order: 2; }
-  #time-display { order: 3; margin-left: auto; }
-  #reputation-display { order: 5; }
-  #crowd-display { order: 6; }
+  #reputation-display { order: 2; }
+  #crowd-display { order: 3; }
+  #time-display { order: 4; margin-left: auto; }
+  #season-display { order: 6; }
 
   #hud-top::after {
     content: '';
     width: 100%;
-    order: 4;
+    order: 5;
   }
 
   .build-item {
