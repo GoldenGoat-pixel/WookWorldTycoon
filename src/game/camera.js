@@ -20,8 +20,13 @@ export class CameraController {
     this._lastPinchMid = null;
     this._isPanning = false;
     this._isRotating = false;
+    this._isTouchPanning = false;
     this._prevX = 0;
     this._prevY = 0;
+    this._touchStartPos = null;
+
+    // Flag for main.js: true if the last touch gesture was a pan (not a tap)
+    this.didPan = false;
 
     this._bindEvents();
     this.update();
@@ -37,13 +42,20 @@ export class CameraController {
   }
 
   _onPointerDown(e) {
-    this._pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this._pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
 
     if (this._pointers.size === 2) {
       this._lastPinchDist = this._pinchDistance();
       this._lastPinchMid = this._pinchMidpoint();
       this._isPanning = false;
       this._isRotating = false;
+      this._isTouchPanning = false;
+    } else if (e.pointerType === 'touch' && this._pointers.size === 1) {
+      // Single touch: prepare for pan (confirmed on move past threshold)
+      this._touchStartPos = { x: e.clientX, y: e.clientY };
+      this._prevX = e.clientX;
+      this._prevY = e.clientY;
+      this.didPan = false;
     } else if (e.button === 2 || e.button === 1) {
       this._isRotating = true;
       this._prevX = e.clientX;
@@ -57,7 +69,7 @@ export class CameraController {
 
   _onPointerMove(e) {
     if (!this._pointers.has(e.pointerId)) return;
-    this._pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this._pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
 
     if (this._pointers.size === 2) {
       const dist = this._pinchDistance();
@@ -81,6 +93,37 @@ export class CameraController {
       this._lastPinchMid = mid;
       this.update();
       return;
+    }
+
+    // Single-finger touch pan
+    if (e.pointerType === 'touch' && this._touchStartPos && this._pointers.size === 1) {
+      const totalDx = e.clientX - this._touchStartPos.x;
+      const totalDy = e.clientY - this._touchStartPos.y;
+      const totalDist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
+
+      if (!this._isTouchPanning && totalDist > 10) {
+        this._isTouchPanning = true;
+        this.didPan = true;
+        this._prevX = e.clientX;
+        this._prevY = e.clientY;
+      }
+
+      if (this._isTouchPanning) {
+        const dx = e.clientX - this._prevX;
+        const dy = e.clientY - this._prevY;
+        this._prevX = e.clientX;
+        this._prevY = e.clientY;
+
+        const panSpeed = this.distance * 0.003;
+        const right = new THREE.Vector3();
+        this.camera.getWorldDirection(right).cross(this.camera.up).normalize();
+        const forward = new THREE.Vector3();
+        forward.copy(right).cross(new THREE.Vector3(0, 1, 0)).normalize();
+        this.target.addScaledVector(right, -dx * panSpeed);
+        this.target.addScaledVector(forward, dy * panSpeed);
+        this.update();
+        return;
+      }
     }
 
     const dx = e.clientX - this._prevX;
@@ -109,6 +152,10 @@ export class CameraController {
     if (this._pointers.size < 2) {
       this._lastPinchDist = 0;
       this._lastPinchMid = null;
+    }
+    if (this._pointers.size === 0) {
+      this._isTouchPanning = false;
+      this._touchStartPos = null;
     }
     this._isPanning = false;
     this._isRotating = false;

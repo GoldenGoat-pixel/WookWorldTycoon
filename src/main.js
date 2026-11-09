@@ -92,17 +92,82 @@ const festivalLive = document.getElementById('festival-live');
 const festivalControls = document.getElementById('festival-controls');
 const toolbarEl = document.getElementById('toolbar');
 
+// --- Build sliders (mobile) ---
+const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const buildSliders = document.getElementById('build-sliders');
+const sliderX = document.getElementById('slider-x');
+const sliderZ = document.getElementById('slider-z');
+
+function showBuildSliders() {
+  if (isMobile && selectedBuilding && currentTool === 'build' && festival.phase === 'planning') {
+    buildSliders.classList.remove('hidden');
+    sliderX.value = 0;
+    sliderZ.value = 0;
+    updateSliderGhost();
+  }
+}
+
+function hideBuildSliders() {
+  buildSliders.classList.add('hidden');
+  world.clearGhost();
+}
+
+function getSliderGridPos() {
+  const cx = camCtrl.target.x + parseInt(sliderX.value);
+  const cz = camCtrl.target.z + parseInt(sliderZ.value);
+  return world.snapToGrid(cx, cz);
+}
+
+function updateSliderGhost() {
+  if (!selectedBuilding) return;
+  const [gx, gz] = getSliderGridPos();
+  world.showGhost(gx, gz, selectedBuilding, placementRotation);
+}
+
+sliderX.addEventListener('input', updateSliderGhost);
+sliderZ.addEventListener('input', updateSliderGhost);
+
+document.getElementById('slider-place').addEventListener('click', () => {
+  if (!selectedBuilding || festival.phase !== 'planning') return;
+  if (!economy.canAfford(selectedBuilding.cost)) {
+    sounds.playError();
+    showToast('Not enough money!');
+    return;
+  }
+  const [gx, gz] = getSliderGridPos();
+  const entry = world.place(gx, gz, selectedBuilding, placementRotation);
+  if (entry) {
+    economy.spend(selectedBuilding.cost);
+    sounds.playPlace();
+    sounds.updateMusicIntensity(economy.crowdSize);
+    sliderX.value = 0;
+    sliderZ.value = 0;
+    updateSliderGhost();
+  } else {
+    sounds.playError();
+    showToast("Can't place here!");
+  }
+});
+
+document.getElementById('slider-reset').addEventListener('click', () => {
+  sliderX.value = 0;
+  sliderZ.value = 0;
+  updateSliderGhost();
+});
+
 // --- UI ---
 const buildMenu = new BuildMenu(item => {
   selectedBuilding = item;
   world.clearGhost();
   sounds.playSelect();
+  showBuildSliders();
 }, economy);
 
 const toolbar = new Toolbar(tool => {
   if (festival.phase === 'hosting' && (tool === 'build' || tool === 'bulldoze')) return;
   currentTool = tool;
   world.clearGhost();
+  hideBuildSliders();
   infoPanel.hide();
   selectedEntry = null;
 
@@ -304,7 +369,7 @@ canvas.addEventListener('pointermove', e => {
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) pointerMoved = true;
   }
 
-  if (currentTool === 'build' && selectedBuilding && festival.phase === 'planning') {
+  if (currentTool === 'build' && selectedBuilding && festival.phase === 'planning' && !camCtrl.didPan) {
     const pt = getGroundPoint(e.clientX, e.clientY);
     const [gx, gz] = world.snapToGrid(pt.x, pt.z);
     world.showGhost(gx, gz, selectedBuilding, placementRotation);
@@ -312,7 +377,7 @@ canvas.addEventListener('pointermove', e => {
 });
 
 canvas.addEventListener('pointerup', e => {
-  if (e.button !== 0 || pointerMoved) {
+  if (e.button !== 0 || pointerMoved || camCtrl.didPan) {
     pointerDownPos = null;
     return;
   }
@@ -373,6 +438,7 @@ window.addEventListener('keydown', e => {
     buildMenu.clearSelection();
     selectedBuilding = null;
     world.clearGhost();
+    hideBuildSliders();
     infoPanel.hide();
     festivalPanel.classList.add('hidden');
     objectivesPanel.classList.add('hidden');

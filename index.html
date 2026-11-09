@@ -130,6 +130,20 @@
     </div>
   </div>
 
+  <!-- Build position sliders (mobile) -->
+  <div id="build-sliders" class="hidden">
+    <div class="slider-row">
+      <label>↔</label>
+      <input type="range" id="slider-x" min="-30" max="30" value="0" step="1">
+    </div>
+    <div class="slider-row">
+      <label>↕</label>
+      <input type="range" id="slider-z" min="-30" max="30" value="0" step="1">
+    </div>
+    <button id="slider-place" class="slider-place-btn">✓ Place</button>
+    <button id="slider-reset" class="slider-reset-btn">↺</button>
+  </div>
+
   <!-- Bottom toolbar -->
   <div id="toolbar">
     <button class="tool-btn" data-tool="select" title="Select">🔍</button>
