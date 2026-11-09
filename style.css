@@ -25,6 +25,7 @@
 }
 
 .logo-mobile { display: none; }
+.logo-landscape { display: none; }
 
 /* Sign buttons — positioned over the right-side wooden sign post */
 .menu-signs {
@@ -468,7 +469,8 @@ html, body {
   #festival-live, #festival-panel, #objectives-panel { display: none !important; }
 
   .logo-desktop { display: none; }
-  .logo-mobile { display: block; }
+  .logo-portrait { display: block; }
+  .logo-landscape { display: none; }
 
   .logo-bg {
     position: absolute;
@@ -582,7 +584,8 @@ html, body {
   }
 
   .logo-desktop { display: none; }
-  .logo-mobile { display: block; }
+  .logo-portrait { display: none; }
+  .logo-landscape { display: block; }
 
   .logo-bg {
     position: absolute;
