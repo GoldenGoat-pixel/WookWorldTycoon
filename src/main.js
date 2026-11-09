@@ -572,12 +572,21 @@ function dismissLoadingScreen() {
   const loadingScreen = document.getElementById('loading-screen');
   if (loadingScreen) {
     loadingScreen.classList.add('fade-out');
-    setTimeout(() => loadingScreen.remove(), 800);
+    setTimeout(() => { loadingScreen.style.display = 'none'; }, 800);
   }
   sounds.startAmbientMusic(0);
   sounds.startForestAmbience();
   musicStarted = true;
 }
+
+// Always show main menu on fresh page load / restore from bfcache
+window.addEventListener('pageshow', () => {
+  const loadingScreen = document.getElementById('loading-screen');
+  if (loadingScreen) {
+    loadingScreen.style.display = '';
+    loadingScreen.classList.remove('fade-out');
+  }
+});
 
 let audioEnabled = true;
 
