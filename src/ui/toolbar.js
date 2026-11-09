@@ -3,7 +3,7 @@ export class Toolbar {
     this.activeTool = 'build';
     this.onChange = onChange;
 
-    document.querySelectorAll('.tool-btn').forEach(btn => {
+    document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
       btn.addEventListener('click', () => {
         this.setTool(btn.dataset.tool);
       });

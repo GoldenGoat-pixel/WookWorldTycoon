@@ -578,9 +578,19 @@ function dismissLoadingScreen() {
   musicStarted = true;
 }
 
-// Force full reload when restored from bfcache (app reopen)
+// Show main menu when app is reopened (bfcache or PWA resume)
 window.addEventListener('pageshow', (e) => {
-  if (e.persisted) location.reload();
+  if (e.persisted) {
+    window.location.href = window.location.pathname + '?t=' + Date.now();
+  }
+});
+let _lastHidden = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    _lastHidden = Date.now();
+  } else if (_lastHidden > 0 && Date.now() - _lastHidden > 3000) {
+    window.location.href = window.location.pathname + '?t=' + Date.now();
+  }
 });
 
 let audioEnabled = true;
@@ -629,7 +639,6 @@ document.getElementById('menu-audio').addEventListener('click', () => {
 
 // --- Main menu button (in-game) ---
 document.getElementById('main-menu-btn').addEventListener('click', () => {
-  // Save before returning to menu
   if (activeSlot >= 0) {
     saveGame(activeSlot, {
       economy: economy.toJSON(),
@@ -638,7 +647,7 @@ document.getElementById('main-menu-btn').addEventListener('click', () => {
       objectives: objectives.toJSON()
     });
   }
-  location.reload();
+  window.location.href = window.location.pathname + '?t=' + Date.now();
 });
 
 function openSaveModal() {

@@ -3,10 +3,9 @@
 /* Loading screen — full-bleed image */
 #loading-screen {
   position: fixed;
-  top: -env(safe-area-inset-top);
-  left: -env(safe-area-inset-left);
-  right: -env(safe-area-inset-right);
-  bottom: -env(safe-area-inset-bottom);
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
   background: #0a0a12;
   z-index: 9999;
   overflow: hidden;
