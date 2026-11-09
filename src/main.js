@@ -491,7 +491,6 @@ function loadSlotData(slot) {
         if (building) world.place(b.x, b.z, building, b.rotation || 0);
       }
     }
-    if (saved.timeOfDay !== undefined) dayNight.timeOfDay = saved.timeOfDay;
     if (saved.festival) festival.loadJSON(saved.festival);
     if (saved.objectives) objectives.loadJSON(saved.objectives);
     lastUnlockRep = economy.reputation;
@@ -635,7 +634,6 @@ document.getElementById('main-menu-btn').addEventListener('click', () => {
     saveGame(activeSlot, {
       economy: economy.toJSON(),
       buildings: world.toJSON(),
-      timeOfDay: dayNight.timeOfDay,
       festival: festival.toJSON(),
       objectives: objectives.toJSON()
     });
@@ -704,7 +702,6 @@ function animate(time) {
     saveGame(activeSlot, {
       economy: economy.toJSON(),
       buildings: world.toJSON(),
-      timeOfDay: dayNight.timeOfDay,
       festival: festival.toJSON(),
       objectives: objectives.toJSON()
     });

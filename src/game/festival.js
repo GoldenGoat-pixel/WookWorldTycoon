@@ -72,6 +72,7 @@ export class FestivalManager {
     this.economy.money += this.ticketRevenue - this.expenses;
     this.economy.crowdSize = this.festivalAttendance;
     this.economy.updateHUD();
+    this.dayNight.unlockCycle();
     if (this.onPhaseChange) this.onPhaseChange('hosting');
     return true;
   }
@@ -155,6 +156,7 @@ export class FestivalManager {
     };
     this.phase = 'results';
     this.dayNight.paused = true;
+    this.dayNight.lockToDay();
     if (this.onPhaseChange) this.onPhaseChange('results');
   }
 
@@ -164,6 +166,7 @@ export class FestivalManager {
     this.results = null;
     this.economy.crowdSize = 0;
     this.dayNight.paused = false;
+    this.dayNight.lockToDay();
     this.economy.updateHUD();
     if (this.onPhaseChange) this.onPhaseChange('planning');
   }

@@ -7,6 +7,7 @@ export class DayNightCycle {
     this.timeOfDay = 0.35; // Start at late morning (0=midnight, 0.5=noon, 1=midnight)
     this.speed = 0.002;     // Full day in ~8 minutes
     this.paused = false;
+    this.locked = true;     // Lock to daytime during building; unlock during festival
 
     // Store original colors
     this._origFog = 0x87ceeb;
@@ -63,10 +64,24 @@ export class DayNightCycle {
     return '🌙';
   }
 
+  lockToDay() {
+    this.locked = true;
+    this.timeOfDay = 0.35;
+    this.update(0);
+  }
+
+  unlockCycle() {
+    this.locked = false;
+    this.timeOfDay = 0.3;
+  }
+
   update(dt) {
     if (this.paused) return;
-
-    this.timeOfDay = (this.timeOfDay + this.speed * dt) % 1.0;
+    if (this.locked) {
+      this.timeOfDay = 0.35;
+    } else {
+      this.timeOfDay = (this.timeOfDay + this.speed * dt) % 1.0;
+    }
 
     const t = this.timeOfDay;
     const sunAngle = t * Math.PI * 2 - Math.PI / 2;
