@@ -864,7 +864,7 @@ html, body {
   }
 
   #festival-live {
-    top: max(100px, calc(env(safe-area-inset-top) + 90px));
+    top: max(120px, calc(env(safe-area-inset-top) + 110px));
     gap: 6px;
   }
 
