@@ -83,7 +83,7 @@ export class DayNightCycle {
     const daylight = Math.max(0, Math.min(1, sunHeight * 1.5 + 0.3));
 
     // Sun intensity
-    this.sun.intensity = 0.1 + daylight * 0.9;
+    this.sun.intensity = 0.3 + daylight * 0.7;
 
     // Sun color (warm at sunrise/sunset, white at noon)
     const sunColorFactor = Math.abs(sunHeight);
@@ -95,17 +95,17 @@ export class DayNightCycle {
     // Ambient light
     const ambientScene = this.scene.children.find(c => c.isAmbientLight);
     if (ambientScene) {
-      ambientScene.intensity = 0.15 + daylight * 0.55;
-      const ambR = 0.4 + daylight * 0.6;
-      const ambG = 0.4 + daylight * 0.6;
-      const ambB = 0.5 + daylight * 0.5;
+      ambientScene.intensity = 0.35 + daylight * 0.35;
+      const ambR = 0.55 + daylight * 0.45;
+      const ambG = 0.55 + daylight * 0.45;
+      const ambB = 0.6 + daylight * 0.4;
       ambientScene.color.setRGB(ambR, ambG, ambB);
     }
 
     // Sky color
-    const skyR = Math.floor((0.1 + daylight * 0.43) * 255);
-    const skyG = Math.floor((0.1 + daylight * 0.71) * 255);
-    const skyB = Math.floor((0.15 + daylight * 0.77) * 255);
+    const skyR = Math.floor((0.18 + daylight * 0.35) * 255);
+    const skyG = Math.floor((0.18 + daylight * 0.63) * 255);
+    const skyB = Math.floor((0.25 + daylight * 0.67) * 255);
     const skyColor = (skyR << 16) | (skyG << 8) | skyB;
 
     this.scene.background = new THREE.Color(skyColor);
