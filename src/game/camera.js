@@ -80,7 +80,7 @@ export class CameraController {
         const scale = this._lastPinchDist / dist;
         this.distance = Math.max(this.minDistance, Math.min(this.maxDistance, this.distance * scale));
       }
-      // Two-finger rotation
+      // Two-finger rotation (twist)
       const angle = this._pinchAngle();
       if (this._lastPinchAngle !== null && angle !== null) {
         let da = angle - this._lastPinchAngle;
@@ -89,6 +89,12 @@ export class CameraController {
         this.angle += da;
       }
       this._lastPinchAngle = angle;
+
+      // Two-finger up/down to tilt camera
+      if (this._lastPinchMid) {
+        const mdy = mid.y - this._lastPinchMid.y;
+        this.pitch = Math.max(this.minPitch, Math.min(this.maxPitch, this.pitch + mdy * 0.005));
+      }
 
       this._lastPinchDist = dist;
       this._lastPinchMid = mid;
