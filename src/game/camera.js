@@ -18,6 +18,7 @@ export class CameraController {
     this._pointers = new Map();
     this._lastPinchDist = 0;
     this._lastPinchMid = null;
+    this._lastPinchAngle = null;
     this._isPanning = false;
     this._isRotating = false;
     this._isTouchPanning = false;
@@ -47,6 +48,7 @@ export class CameraController {
     if (this._pointers.size === 2) {
       this._lastPinchDist = this._pinchDistance();
       this._lastPinchMid = this._pinchMidpoint();
+      this._lastPinchAngle = this._pinchAngle();
       this._isPanning = false;
       this._isRotating = false;
       this._isTouchPanning = false;
@@ -78,17 +80,16 @@ export class CameraController {
         const scale = this._lastPinchDist / dist;
         this.distance = Math.max(this.minDistance, Math.min(this.maxDistance, this.distance * scale));
       }
-      if (this._lastPinchMid) {
-        const mdx = mid.x - this._lastPinchMid.x;
-        const mdy = mid.y - this._lastPinchMid.y;
-        const panSpeed = this.distance * 0.003;
-        const right = new THREE.Vector3();
-        this.camera.getWorldDirection(right).cross(this.camera.up).normalize();
-        const forward = new THREE.Vector3();
-        forward.copy(right).cross(new THREE.Vector3(0, 1, 0)).normalize();
-        this.target.addScaledVector(right, -mdx * panSpeed);
-        this.target.addScaledVector(forward, mdy * panSpeed);
+      // Two-finger rotation
+      const angle = this._pinchAngle();
+      if (this._lastPinchAngle !== null && angle !== null) {
+        let da = angle - this._lastPinchAngle;
+        if (da > Math.PI) da -= Math.PI * 2;
+        if (da < -Math.PI) da += Math.PI * 2;
+        this.angle += da;
       }
+      this._lastPinchAngle = angle;
+
       this._lastPinchDist = dist;
       this._lastPinchMid = mid;
       this.update();
@@ -152,6 +153,7 @@ export class CameraController {
     if (this._pointers.size < 2) {
       this._lastPinchDist = 0;
       this._lastPinchMid = null;
+      this._lastPinchAngle = null;
     }
     if (this._pointers.size === 0) {
       this._isTouchPanning = false;
@@ -180,6 +182,12 @@ export class CameraController {
     const pts = [...this._pointers.values()];
     if (pts.length < 2) return null;
     return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+  }
+
+  _pinchAngle() {
+    const pts = [...this._pointers.values()];
+    if (pts.length < 2) return null;
+    return Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x);
   }
 
   update() {
