@@ -399,7 +399,12 @@ export class AttendeeManager {
   }
 
   _isOccupied(x, z) {
-    return this.world.occupied.has(`${Math.round(x)},${Math.round(z)}`);
+    const key = `${Math.round(x)},${Math.round(z)}`;
+    return this.world.occupied.has(key) && !this.world.walkable.has(key);
+  }
+
+  _isOnPath(x, z) {
+    return this.world.walkable.has(`${Math.round(x)},${Math.round(z)}`);
   }
 
   _moveToward(att, target, dt) {
@@ -409,7 +414,25 @@ export class AttendeeManager {
     if (d < 0.5) return true;
     dir.normalize();
 
-    const step = att.speed * dt;
+    const onPath = this._isOnPath(att.mesh.position.x, att.mesh.position.z);
+    const step = att.speed * (onPath ? 1.8 : 1) * dt;
+
+    if (!onPath && d > 3) {
+      for (let ox = -1; ox <= 1; ox++) {
+        for (let oz = -1; oz <= 1; oz++) {
+          if (ox === 0 && oz === 0) continue;
+          const px = Math.round(att.mesh.position.x) + ox;
+          const pz = Math.round(att.mesh.position.z) + oz;
+          if (this._isOnPath(px, pz)) {
+            dir.x = dir.x * 0.7 + ox * 0.3;
+            dir.z = dir.z * 0.7 + oz * 0.3;
+            dir.normalize();
+            ox = 2; break;
+          }
+        }
+      }
+    }
+
     let nx = att.mesh.position.x + dir.x * step;
     let nz = att.mesh.position.z + dir.z * step;
 

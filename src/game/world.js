@@ -9,6 +9,7 @@ export class World {
     this.gridSize = GRID_SIZE;
     this.placed = [];
     this.occupied = new Set();
+    this.walkable = new Set();
     this.ghostMesh = null;
 
     this._buildGround();
@@ -214,11 +215,13 @@ export class World {
     mesh.rotation.y = rotation;
     this.scene.add(mesh);
 
+    const isPath = building.id === 'path' || building.id === 'paved_path';
     for (let dx = 0; dx < sizeX; dx++) {
       for (let dz = 0; dz < sizeZ; dz++) {
         const cx = gx + dx - Math.floor(sizeX / 2);
         const cz = gz + dz - Math.floor(sizeZ / 2);
         this.occupied.add(`${cx},${cz}`);
+        if (isPath) this.walkable.add(`${cx},${cz}`);
       }
     }
 
@@ -249,6 +252,7 @@ export class World {
         const cx = entry.gridX + dx - Math.floor(entry.sizeX / 2);
         const cz = entry.gridZ + dz - Math.floor(entry.sizeZ / 2);
         this.occupied.delete(`${cx},${cz}`);
+        this.walkable.delete(`${cx},${cz}`);
       }
     }
     this.placed.splice(idx, 1);
