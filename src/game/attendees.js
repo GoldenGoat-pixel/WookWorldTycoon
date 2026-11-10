@@ -31,6 +31,46 @@ const NEED_DECAY = {
 const NEED_THRESHOLD = 60;
 const CRITICAL_THRESHOLD = 85;
 
+const BUBBLE_ICONS = {
+  hunger:  '🍔',
+  thirst:  '💧',
+  fun:     '🎵',
+  energy:  '😴',
+  bladder: '🚽',
+  happy:   '❤️',
+  angry:   '😡'
+};
+
+const _bubbleTextures = {};
+function _getBubbleTexture(key, critical) {
+  const cacheKey = key + (critical ? '_crit' : '');
+  if (_bubbleTextures[cacheKey]) return _bubbleTextures[cacheKey];
+
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const c = canvas.getContext('2d');
+
+  c.beginPath();
+  c.roundRect(4, 4, size - 8, size - 8, 12);
+  c.fillStyle = critical ? 'rgba(220,50,50,0.92)' : 'rgba(255,255,255,0.92)';
+  c.fill();
+  c.strokeStyle = critical ? 'rgba(180,30,30,0.8)' : 'rgba(0,0,0,0.15)';
+  c.lineWidth = 2;
+  c.stroke();
+
+  c.font = '32px serif';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText(BUBBLE_ICONS[key] || '?', size / 2, size / 2);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  _bubbleTextures[cacheKey] = tex;
+  return tex;
+}
+
 const STATE = {
   ENTERING: 0,
   WANDERING: 1,
@@ -70,6 +110,9 @@ class Attendee {
     this.dancePhase = Math.random() * Math.PI * 2;
     this.spending = 0;
     this.lifetime = 60 + Math.random() * 120;
+    this.bubble = null;
+    this.bubbleKey = null;
+    this.bubbleTimer = 0;
   }
 
   getMostUrgentNeed() {
@@ -160,6 +203,11 @@ export class AttendeeManager {
   }
 
   _recycle(att) {
+    if (att.bubble) {
+      att.mesh.remove(att.bubble);
+      att.bubble.material.dispose();
+      att.bubble = null;
+    }
     this.scene.remove(att.mesh);
     this.pool.push(att.mesh);
   }
@@ -228,6 +276,53 @@ export class AttendeeManager {
       if (d < nd) { nearest = edges[i]; nd = d; }
     }
     return nearest;
+  }
+
+  _showBubble(att, key, critical) {
+    if (att.bubbleKey === key + (critical ? '_c' : '')) return;
+    const tex = _getBubbleTexture(key, critical);
+    if (!att.bubble) {
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+      att.bubble = new THREE.Sprite(mat);
+      att.bubble.scale.set(0.55, 0.55, 1);
+      att.bubble.position.y = 1.1;
+      att.mesh.add(att.bubble);
+    } else {
+      att.bubble.material.map = tex;
+      att.bubble.material.needsUpdate = true;
+    }
+    att.bubble.visible = true;
+    att.bubbleKey = key + (critical ? '_c' : '');
+    att.bubbleTimer = 0;
+  }
+
+  _hideBubble(att) {
+    if (att.bubble) att.bubble.visible = false;
+    att.bubbleKey = null;
+  }
+
+  _updateBubble(att, dt) {
+    const urgent = att.getMostUrgentNeed();
+    const critical = att.getCriticalNeed();
+
+    if (att.state === STATE.LEAVING && att.satisfaction < 20) {
+      this._showBubble(att, 'angry', true);
+    } else if (att.state === STATE.DANCING) {
+      this._showBubble(att, 'happy', false);
+    } else if (critical) {
+      this._showBubble(att, critical, true);
+    } else if (urgent) {
+      this._showBubble(att, urgent, false);
+    } else if (att.state === STATE.USING) {
+      this._hideBubble(att);
+    } else {
+      att.bubbleTimer += dt;
+      if (att.bubbleTimer > 1.5) this._hideBubble(att);
+    }
+
+    if (att.bubble && att.bubble.visible) {
+      att.bubble.position.y = 1.05 + Math.sin(performance.now() * 0.003 + att.dancePhase) * 0.04;
+    }
   }
 
   _isOccupied(x, z) {
@@ -327,6 +422,8 @@ export class AttendeeManager {
         att.target = this._getExitTarget(att);
         if (att.satisfaction < 20) this.stats.unhappyLeft++;
       }
+
+      this._updateBubble(att, dt);
 
       switch (att.state) {
         case STATE.ENTERING:
@@ -443,6 +540,10 @@ export class AttendeeManager {
 
   clear() {
     for (const att of this.attendees) {
+      if (att.bubble) {
+        att.mesh.remove(att.bubble);
+        att.bubble.material.dispose();
+      }
       this.scene.remove(att.mesh);
       this.pool.push(att.mesh);
     }
