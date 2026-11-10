@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CameraController } from './game/camera.js';
 import { World } from './game/world.js';
 import { Economy } from './game/economy.js';
-import { CrowdSystem } from './game/crowd.js';
+import { AttendeeManager } from './game/attendees.js';
 import { DayNightCycle } from './game/daynight.js';
 import { FestivalManager } from './game/festival.js';
 import { ObjectiveManager, OBJECTIVES } from './game/objectives.js';
@@ -48,7 +48,7 @@ const camCtrl = new CameraController(camera, canvas);
 // --- Core systems ---
 const world = new World(scene);
 const economy = new Economy();
-const crowd = new CrowdSystem(scene, world);
+const crowd = new AttendeeManager(scene, world, economy);
 const dayNight = new DayNightCycle(scene, sun);
 const sounds = new SoundSystem();
 const infoPanel = new InfoPanel();
@@ -254,6 +254,17 @@ function updateLiveHUD() {
   document.getElementById('live-day').textContent = festival.currentFestivalDay;
   document.getElementById('live-total').textContent = festival.festivalDaysTotal;
   document.getElementById('live-vendor').textContent = festival.vendorRevenue.toLocaleString();
+  const mood = crowd.getLiveSatisfaction();
+  const moodEl = document.getElementById('live-mood');
+  if (moodEl) {
+    let emoji = '😐';
+    if (mood >= 80) emoji = '🤩';
+    else if (mood >= 60) emoji = '😊';
+    else if (mood >= 40) emoji = '😐';
+    else if (mood >= 20) emoji = '😟';
+    else emoji = '😡';
+    moodEl.textContent = `${emoji} ${mood}%`;
+  }
 }
 
 function updateSeasonDisplay() {
@@ -307,6 +318,7 @@ festival.onPhaseChange = (phase) => {
     sounds.playPlace();
   } else if (phase === 'results') {
     festivalLive.classList.add('hidden');
+    crowd.clear();
     sounds.stopFestivalAmbience();
     sounds.playVictoryFanfare();
     showResults(festival.results);
@@ -315,6 +327,7 @@ festival.onPhaseChange = (phase) => {
     resultsOverlay.classList.add('hidden');
     festivalControls.classList.remove('hidden');
     toolbarEl.classList.remove('hosting');
+    festival.liveSatisfaction = null;
     sounds.startForestAmbience();
     updateSeasonDisplay();
     economy.updateHUD();
@@ -712,7 +725,8 @@ function animate(time) {
   // Crowd simulation
   let targetNPCs = 0;
   if (festival.phase === 'hosting') {
-    targetNPCs = Math.min(Math.floor(festival.festivalAttendance * 0.4), 500);
+    targetNPCs = Math.min(Math.floor(festival.festivalAttendance * 0.4), 300);
+    festival.liveSatisfaction = crowd.getLiveSatisfaction();
   }
   crowd.update(dt, targetNPCs);
 

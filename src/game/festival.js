@@ -24,6 +24,7 @@ export class FestivalManager {
     this.bestAttendance = 0;
     this.bestSatisfaction = 0;
     this.onPhaseChange = null;
+    this.liveSatisfaction = null;
   }
 
   get dayDuration() {
@@ -147,7 +148,9 @@ export class FestivalManager {
   }
 
   _endFestival() {
-    const satisfaction = this.calculateSatisfaction();
+    const structural = this.calculateSatisfaction();
+    const live = this.liveSatisfaction != null ? this.liveSatisfaction : structural;
+    const satisfaction = Math.round(structural * 0.4 + live * 0.6);
     const netProfit = this.ticketRevenue + this.vendorRevenue - this.expenses;
     const repEarned = Math.floor(satisfaction * 0.3 + this.festivalAttendance * 0.01);
     this.economy.reputation += repEarned;

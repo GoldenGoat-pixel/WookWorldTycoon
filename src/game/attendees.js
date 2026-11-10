@@ -1,0 +1,419 @@
+import * as THREE from 'three';
+
+const SKIN_TONES = [0xf5d0a9, 0xd4a574, 0xc68642, 0x8d5524, 0x6b3a2a, 0xffe0bd];
+const SHIRT_COLORS = [0xe05050, 0x5050e0, 0x50b050, 0xe0e050, 0xff8800, 0xcc44cc, 0x44cccc, 0xffffff, 0x222222, 0xff69b4];
+const HAT_COLORS = [0x000000, 0xe05050, 0x3366cc, 0xffcc00, 0x33cc33];
+
+const NEED_BUILDINGS = {
+  hunger:  ['food_tent', 'bar', 'vip_lounge'],
+  thirst:  ['bar', 'fountain', 'vip_lounge'],
+  fun:     ['medium_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage', 'ferris_wheel', 'art_sculpture'],
+  energy:  ['tent_small', 'tent_large', 'glamping_tent', 'hammock_grove', 'rv_spot'],
+  bladder: ['toilets']
+};
+
+const NEED_SATISFY = {
+  hunger:  40,
+  thirst:  50,
+  fun:     35,
+  energy:  30,
+  bladder: 60
+};
+
+const NEED_DECAY = {
+  hunger:  3,
+  thirst:  5,
+  fun:     4,
+  energy:  2,
+  bladder: 4
+};
+
+const NEED_THRESHOLD = 60;
+const CRITICAL_THRESHOLD = 85;
+
+const STATE = {
+  ENTERING: 0,
+  WANDERING: 1,
+  SEEKING: 2,
+  USING: 3,
+  DANCING: 4,
+  LEAVING: 5
+};
+
+function dist2D(a, b) {
+  const dx = a.x - b.x;
+  const dz = a.z - b.z;
+  return Math.sqrt(dx * dx + dz * dz);
+}
+
+class Attendee {
+  constructor(mesh, x, z) {
+    this.mesh = mesh;
+    this.mesh.position.set(x, 0, z);
+    this.speed = 2.5 + Math.random() * 1.5;
+
+    this.needs = {
+      hunger:  Math.random() * 30,
+      thirst:  Math.random() * 30,
+      fun:     Math.random() * 20,
+      energy:  Math.random() * 15,
+      bladder: Math.random() * 25
+    };
+
+    this.satisfaction = 80;
+    this.state = STATE.ENTERING;
+    this.target = null;
+    this.targetEntry = null;
+    this.useTimer = 0;
+    this.useDuration = 0;
+    this.wanderTimer = 0;
+    this.dancePhase = Math.random() * Math.PI * 2;
+    this.spending = 0;
+    this.lifetime = 60 + Math.random() * 120;
+  }
+
+  getMostUrgentNeed() {
+    let worst = null;
+    let worstVal = 0;
+    for (const [need, val] of Object.entries(this.needs)) {
+      if (val > worstVal) {
+        worstVal = val;
+        worst = need;
+      }
+    }
+    return worstVal >= NEED_THRESHOLD ? worst : null;
+  }
+
+  getCriticalNeed() {
+    for (const [need, val] of Object.entries(this.needs)) {
+      if (val >= CRITICAL_THRESHOLD) return need;
+    }
+    return null;
+  }
+}
+
+export class AttendeeManager {
+  constructor(scene, world, economy) {
+    this.scene = scene;
+    this.world = world;
+    this.economy = economy;
+    this.attendees = [];
+    this.pool = [];
+    this.maxAttendees = 300;
+    this.spawnTimer = 0;
+    this.stats = { totalSpending: 0, avgSatisfaction: 0, left: 0, unhappyLeft: 0 };
+    this._tmpVec = new THREE.Vector3();
+  }
+
+  _createMesh() {
+    const group = new THREE.Group();
+    const skin = SKIN_TONES[Math.floor(Math.random() * SKIN_TONES.length)];
+    const shirt = SHIRT_COLORS[Math.floor(Math.random() * SHIRT_COLORS.length)];
+
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(0.22, 0.35, 0.15),
+      new THREE.MeshLambertMaterial({ color: shirt })
+    );
+    body.position.y = 0.45;
+    group.add(body);
+
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.1, 6, 5),
+      new THREE.MeshLambertMaterial({ color: skin })
+    );
+    head.position.y = 0.72;
+    group.add(head);
+
+    for (const s of [-0.06, 0.06]) {
+      const leg = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.25, 0.08),
+        new THREE.MeshLambertMaterial({ color: 0x334466 })
+      );
+      leg.position.set(s, 0.15, 0);
+      group.add(leg);
+    }
+
+    if (Math.random() < 0.3) {
+      const hat = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 0.06, 8),
+        new THREE.MeshLambertMaterial({ color: HAT_COLORS[Math.floor(Math.random() * HAT_COLORS.length)] })
+      );
+      hat.position.y = 0.83;
+      group.add(hat);
+    }
+
+    if (Math.random() < 0.2) {
+      const glow = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.01, 0.01, 0.2),
+        new THREE.MeshBasicMaterial({ color: [0x00ff88, 0xff00ff, 0x00ffff, 0xffff00][Math.floor(Math.random() * 4)] })
+      );
+      glow.position.set(0.15, 0.5, 0);
+      glow.rotation.z = Math.PI / 6;
+      group.add(glow);
+    }
+
+    return group;
+  }
+
+  _getMesh() {
+    return this.pool.length > 0 ? this.pool.pop() : this._createMesh();
+  }
+
+  _recycle(att) {
+    this.scene.remove(att.mesh);
+    this.pool.push(att.mesh);
+  }
+
+  _findBuildingsForNeed(need) {
+    const ids = NEED_BUILDINGS[need];
+    if (!ids) return [];
+    return this.world.placed.filter(e => ids.includes(e.data.id));
+  }
+
+  _findNearestBuilding(att, need) {
+    const buildings = this._findBuildingsForNeed(need);
+    if (buildings.length === 0) return null;
+
+    let best = null;
+    let bestDist = Infinity;
+    for (const entry of buildings) {
+      const d = dist2D(att.mesh.position, { x: entry.gridX, z: entry.gridZ + entry.sizeZ / 2 + 1 });
+      if (d < bestDist) {
+        bestDist = d;
+        best = entry;
+      }
+    }
+    return best;
+  }
+
+  _pickWanderTarget(att) {
+    if (this.world.placed.length === 0) return null;
+    const interesting = this.world.placed.filter(e => e.data.capacity || e.data.income);
+    const pool = interesting.length > 0 ? interesting : this.world.placed;
+    const entry = pool[Math.floor(Math.random() * pool.length)];
+    const ox = (Math.random() - 0.5) * (entry.sizeX + 4);
+    const oz = (Math.random() - 0.5) * (entry.sizeZ + 4);
+    return new THREE.Vector3(entry.gridX + ox, 0, entry.gridZ + oz + 2);
+  }
+
+  _getEntryPoint() {
+    const half = this.world.gridSize / 2;
+    const edge = Math.floor(Math.random() * 4);
+    switch (edge) {
+      case 0: return { x: -half, z: (Math.random() - 0.5) * half };
+      case 1: return { x: half, z: (Math.random() - 0.5) * half };
+      case 2: return { x: (Math.random() - 0.5) * half, z: -half };
+      default: return { x: (Math.random() - 0.5) * half, z: half };
+    }
+  }
+
+  _getExitTarget(att) {
+    const half = this.world.gridSize / 2;
+    const pos = att.mesh.position;
+    const edges = [
+      new THREE.Vector3(-half - 3, 0, pos.z),
+      new THREE.Vector3(half + 3, 0, pos.z),
+      new THREE.Vector3(pos.x, 0, -half - 3),
+      new THREE.Vector3(pos.x, 0, half + 3)
+    ];
+    let nearest = edges[0];
+    let nd = dist2D(pos, nearest);
+    for (let i = 1; i < edges.length; i++) {
+      const d = dist2D(pos, edges[i]);
+      if (d < nd) { nearest = edges[i]; nd = d; }
+    }
+    return nearest;
+  }
+
+  _moveToward(att, target, dt) {
+    const dir = this._tmpVec;
+    dir.set(target.x - att.mesh.position.x, 0, target.z - att.mesh.position.z);
+    const d = dir.length();
+    if (d < 0.5) return true;
+    dir.normalize();
+    att.mesh.position.x += dir.x * att.speed * dt;
+    att.mesh.position.z += dir.z * att.speed * dt;
+    att.mesh.position.y = Math.abs(Math.sin(performance.now() * 0.008 + att.dancePhase)) * 0.04;
+    att.mesh.rotation.y = Math.atan2(dir.x, dir.z);
+    return false;
+  }
+
+  spawn() {
+    if (this.attendees.length >= this.maxAttendees) return;
+    const ep = this._getEntryPoint();
+    const mesh = this._getMesh();
+    const att = new Attendee(mesh, ep.x, ep.z);
+
+    const wt = this._pickWanderTarget(att);
+    if (!wt) return;
+    att.target = wt;
+    att.state = STATE.ENTERING;
+
+    this.scene.add(mesh);
+    this.attendees.push(att);
+  }
+
+  update(dt, targetCount) {
+    this.spawnTimer -= dt;
+    const desired = Math.min(targetCount, this.maxAttendees);
+
+    if (this.attendees.length < desired && this.spawnTimer <= 0) {
+      this.spawn();
+      this.spawnTimer = 0.2 + Math.random() * 0.3;
+    }
+
+    let totalSat = 0;
+
+    for (let i = this.attendees.length - 1; i >= 0; i--) {
+      const att = this.attendees[i];
+
+      for (const need of Object.keys(att.needs)) {
+        att.needs[need] = Math.min(100, att.needs[need] + NEED_DECAY[need] * dt);
+      }
+
+      att.lifetime -= dt;
+
+      let unhappy = 0;
+      for (const val of Object.values(att.needs)) {
+        if (val > CRITICAL_THRESHOLD) unhappy += 2;
+        else if (val > NEED_THRESHOLD) unhappy += 1;
+      }
+      att.satisfaction = Math.max(0, Math.min(100, att.satisfaction - unhappy * dt * 0.5 + (unhappy === 0 ? dt * 2 : 0)));
+      totalSat += att.satisfaction;
+
+      if ((att.satisfaction < 20 || att.lifetime <= 0) && att.state !== STATE.LEAVING) {
+        att.state = STATE.LEAVING;
+        att.target = this._getExitTarget(att);
+        if (att.satisfaction < 20) this.stats.unhappyLeft++;
+      }
+
+      switch (att.state) {
+        case STATE.ENTERING:
+        case STATE.WANDERING: {
+          if (!att.target) att.target = this._pickWanderTarget(att);
+          if (!att.target) break;
+
+          const arrived = this._moveToward(att, att.target, dt);
+          if (arrived) {
+            const urgent = att.getMostUrgentNeed();
+            if (urgent) {
+              const entry = this._findNearestBuilding(att, urgent);
+              if (entry) {
+                att.state = STATE.SEEKING;
+                att.targetEntry = entry;
+                att.target = new THREE.Vector3(
+                  entry.gridX + (Math.random() - 0.5) * entry.sizeX * 0.5,
+                  0,
+                  entry.gridZ + entry.sizeZ / 2 + 0.8
+                );
+                att._seekingNeed = urgent;
+                break;
+              }
+            }
+
+            const stageNearby = this.world.placed.find(e => {
+              const ids = NEED_BUILDINGS.fun;
+              if (!ids.includes(e.data.id)) return false;
+              return dist2D(att.mesh.position, { x: e.gridX, z: e.gridZ }) < e.sizeX + 3;
+            });
+            if (stageNearby && att.needs.fun > 30) {
+              att.state = STATE.DANCING;
+              att.wanderTimer = 4 + Math.random() * 8;
+              att.needs.fun = Math.max(0, att.needs.fun - 15);
+              break;
+            }
+
+            att.state = STATE.WANDERING;
+            att.wanderTimer = 2 + Math.random() * 4;
+            att.target = this._pickWanderTarget(att);
+          }
+          break;
+        }
+
+        case STATE.SEEKING: {
+          if (!att.target) { att.state = STATE.WANDERING; break; }
+          const arrived = this._moveToward(att, att.target, dt);
+          if (arrived) {
+            att.state = STATE.USING;
+            att.useTimer = 0;
+            att.useDuration = 2 + Math.random() * 3;
+          }
+          break;
+        }
+
+        case STATE.USING: {
+          att.useTimer += dt;
+          att.mesh.position.y = 0;
+          if (att.useTimer >= att.useDuration) {
+            const need = att._seekingNeed;
+            if (need && att.needs[need] !== undefined) {
+              att.needs[need] = Math.max(0, att.needs[need] - NEED_SATISFY[need]);
+            }
+
+            const entry = att.targetEntry;
+            if (entry && entry.data.income) {
+              const spend = 2 + Math.floor(Math.random() * 5);
+              this.economy.earn(spend);
+              att.spending += spend;
+              this.stats.totalSpending += spend;
+            }
+
+            att.satisfaction = Math.min(100, att.satisfaction + 5);
+            att.state = STATE.WANDERING;
+            att.target = this._pickWanderTarget(att);
+            att.targetEntry = null;
+            att._seekingNeed = null;
+          }
+          break;
+        }
+
+        case STATE.DANCING: {
+          att.dancePhase += dt * 4;
+          att.mesh.position.y = Math.abs(Math.sin(att.dancePhase)) * 0.1;
+          att.mesh.rotation.y += Math.sin(att.dancePhase * 0.5) * 0.03;
+          att.wanderTimer -= dt;
+          att.needs.fun = Math.max(0, att.needs.fun - dt * 5);
+
+          if (att.wanderTimer <= 0 || att.getCriticalNeed()) {
+            att.state = STATE.WANDERING;
+            att.target = this._pickWanderTarget(att);
+          }
+          break;
+        }
+
+        case STATE.LEAVING: {
+          if (!att.target) att.target = this._getExitTarget(att);
+          const arrived = this._moveToward(att, att.target, dt);
+          if (arrived) {
+            this._recycle(att);
+            this.attendees.splice(i, 1);
+            this.stats.left++;
+            continue;
+          }
+          break;
+        }
+      }
+    }
+
+    this.stats.avgSatisfaction = this.attendees.length > 0
+      ? Math.round(totalSat / this.attendees.length)
+      : 0;
+  }
+
+  clear() {
+    for (const att of this.attendees) {
+      this.scene.remove(att.mesh);
+      this.pool.push(att.mesh);
+    }
+    this.attendees.length = 0;
+    this.stats = { totalSpending: 0, avgSatisfaction: 0, left: 0, unhappyLeft: 0 };
+  }
+
+  getCount() {
+    return this.attendees.length;
+  }
+
+  getLiveSatisfaction() {
+    return this.stats.avgSatisfaction;
+  }
+}
