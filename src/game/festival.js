@@ -17,6 +17,7 @@ export class FestivalManager {
     this.festivalAttendance = 0;
     this.ticketRevenue = 0;
     this.vendorRevenue = 0;
+    this.buildingIncome = new Map();
     this.expenses = 0;
     this.results = null;
     this.totalFestivalsHosted = 0;
@@ -75,6 +76,7 @@ export class FestivalManager {
     this.festivalAttendance = this.calculateExpectedAttendance();
     this.ticketRevenue = this.festivalAttendance * this.ticketPrice;
     this.vendorRevenue = 0;
+    this.buildingIncome = new Map();
     this.expenses = this.calculateExpenses();
     this.economy.money += this.ticketRevenue - this.expenses;
     this.economy.crowdSize = this.festivalAttendance;
@@ -86,22 +88,24 @@ export class FestivalManager {
 
   vendorTick() {
     if (this.phase !== 'hosting') return 0;
+    const VENDOR_INCOME = { food_tent: 5, bar: 12, merch_stand: 8, vip_lounge: 30, rv_spot: 3, glamping_tent: 6 };
     let income = 0;
+    const scale = this.getMaxCapacity() > 0
+      ? Math.min(1, this.festivalAttendance / this.getMaxCapacity()) : 1;
     for (const e of this.world.placed) {
-      switch (e.data.id) {
-        case 'food_tent': income += 5; break;
-        case 'bar': income += 12; break;
-        case 'merch_stand': income += 8; break;
-        case 'vip_lounge': income += 30; break;
-        case 'rv_spot': income += 3; break;
-        case 'glamping_tent': income += 6; break;
-      }
+      const base = VENDOR_INCOME[e.data.id];
+      if (!base) continue;
+      const earned = Math.floor(base * scale);
+      income += earned;
+      this.buildingIncome.set(e, (this.buildingIncome.get(e) || 0) + earned);
     }
-    const cap = this.getMaxCapacity();
-    if (cap > 0) income = Math.floor(income * Math.min(1, this.festivalAttendance / cap));
     this.vendorRevenue += income;
     this.economy.earn(income);
     return income;
+  }
+
+  getBuildingIncome(entry) {
+    return this.buildingIncome.get(entry) || 0;
   }
 
   calculateSatisfaction() {

@@ -439,6 +439,23 @@ html, body {
 .info-desc { color: var(--text-dim, #aaa); margin: 0 0 6px; }
 .info-stat { margin: 2px 0; }
 
+.info-live-stats {
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: rgba(255, 200, 50, 0.08);
+  border: 1px solid rgba(255, 200, 50, 0.2);
+  border-radius: 8px;
+}
+.info-live-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 2px 0;
+  color: #ddd;
+}
+.info-live-icon { font-size: 14px; width: 20px; text-align: center; }
+
 .upgrade-section { margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; }
 .upgrade-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 6px; }
 .upgrade-label.upgrade-complete { color: #2ecc71; }

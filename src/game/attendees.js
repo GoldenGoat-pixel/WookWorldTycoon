@@ -279,6 +279,14 @@ export class AttendeeManager {
     next.useDuration = 2 + Math.random() * 3;
   }
 
+  getBuildingStats(entry) {
+    return {
+      users: this._getUserCount(entry),
+      maxSlots: this._getMaxSlots(entry),
+      queueLength: this._getQueue(entry).length
+    };
+  }
+
   _findBuildingsForNeed(need) {
     const ids = NEED_BUILDINGS[need];
     if (!ids) return [];

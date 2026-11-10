@@ -9,23 +9,44 @@ export class InfoPanel {
     this.bodyEl = document.getElementById('info-body');
     this.closeBtn = document.getElementById('close-info');
     this.onUpgrade = null;
+    this.crowd = null;
+    this.festival = null;
+    this._currentEntry = null;
+    this._refreshId = null;
 
     this.closeBtn.addEventListener('click', () => this.hide());
   }
 
+  setLiveSources(crowd, festival) {
+    this.crowd = crowd;
+    this.festival = festival;
+  }
+
   show(entry) {
+    this._currentEntry = entry;
+    this._render(entry);
+    this.panel.classList.remove('hidden');
+    this._startRefresh();
+  }
+
+  _render(entry) {
     const b = entry.data;
     this.nameEl.textContent = `${b.icon} ${b.name}`;
     let html = `<p class="info-desc">${b.description}</p>`;
+
     if (b.capacity) {
       let totalCap = b.capacity;
       for (const u of entry.upgrades) {
         const upg = getUpgradeById(u.id);
         if (upg) totalCap += upg.capacityBonus;
       }
-      html += `<p class="info-stat">Capacity: ${totalCap}</p>`;
+      html += `<p class="info-stat">Festival capacity: ${totalCap}</p>`;
     }
     if (b.income) html += `<p class="info-stat">Income: $${b.income}/tick</p>`;
+
+    if (this.crowd && this.festival && this.festival.phase === 'hosting') {
+      html += this._buildLiveStats(entry);
+    }
 
     if (STAGE_IDS.includes(b.id)) {
       const available = getUpgradesForStage(b.id);
@@ -58,7 +79,6 @@ export class InfoPanel {
     }
 
     this.bodyEl.innerHTML = html;
-    this.panel.classList.remove('hidden');
 
     this.bodyEl.querySelectorAll('.upgrade-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -68,7 +88,54 @@ export class InfoPanel {
     });
   }
 
+  _buildLiveStats(entry) {
+    const stats = this.crowd.getBuildingStats(entry);
+    const income = this.festival.getBuildingIncome(entry);
+    let html = '<div class="info-live-stats">';
+    html += `<div class="info-live-row"><span class="info-live-icon">👥</span> ${stats.users}/${stats.maxSlots} using</div>`;
+    if (stats.queueLength > 0) {
+      html += `<div class="info-live-row"><span class="info-live-icon">🕐</span> ${stats.queueLength} in queue</div>`;
+    }
+    if (income > 0) {
+      html += `<div class="info-live-row"><span class="info-live-icon">💰</span> $${income.toLocaleString()} earned</div>`;
+    }
+    html += '</div>';
+    return html;
+  }
+
+  _startRefresh() {
+    this._stopRefresh();
+    this._refreshId = setInterval(() => {
+      if (!this._currentEntry || !this.crowd || !this.festival) return;
+      if (this.festival.phase !== 'hosting') return;
+      const liveEl = this.bodyEl.querySelector('.info-live-stats');
+      if (liveEl) {
+        const stats = this.crowd.getBuildingStats(this._currentEntry);
+        const income = this.festival.getBuildingIncome(this._currentEntry);
+        let html = `<div class="info-live-row"><span class="info-live-icon">👥</span> ${stats.users}/${stats.maxSlots} using</div>`;
+        if (stats.queueLength > 0) {
+          html += `<div class="info-live-row"><span class="info-live-icon">🕐</span> ${stats.queueLength} in queue</div>`;
+        }
+        if (income > 0) {
+          html += `<div class="info-live-row"><span class="info-live-icon">💰</span> $${income.toLocaleString()} earned</div>`;
+        }
+        liveEl.innerHTML = html;
+      } else {
+        this._render(this._currentEntry);
+      }
+    }, 1000);
+  }
+
+  _stopRefresh() {
+    if (this._refreshId) {
+      clearInterval(this._refreshId);
+      this._refreshId = null;
+    }
+  }
+
   hide() {
     this.panel.classList.add('hidden');
+    this._currentEntry = null;
+    this._stopRefresh();
   }
 }

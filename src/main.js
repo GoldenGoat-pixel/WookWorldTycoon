@@ -67,6 +67,7 @@ infoPanel.onUpgrade = (entry, upgradeId) => {
   }
 };
 const festival = new FestivalManager(economy, world, dayNight);
+infoPanel.setLiveSources(crowd, festival);
 
 const gameState = {
   getPlacedCount: () => world.placed.length,
