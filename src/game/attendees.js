@@ -174,6 +174,11 @@ export class AttendeeManager {
     this._users = new Map();
     this._queues = new Map();
     this._tmpVec = new THREE.Vector3();
+    this.staff = null;
+  }
+
+  setStaff(staffManager) {
+    this.staff = staffManager;
   }
 
   _createMesh() {
@@ -276,7 +281,9 @@ export class AttendeeManager {
     this._occupySlot(entry);
     next.state = STATE.USING;
     next.useTimer = 0;
-    next.useDuration = 2 + Math.random() * 3;
+    const baseDur = 2 + Math.random() * 3;
+    const speedMult = this.staff ? this.staff.getServiceSpeedMultiplier(entry) : 1;
+    next.useDuration = baseDur / speedMult;
   }
 
   getBuildingStats(entry) {
@@ -592,7 +599,9 @@ export class AttendeeManager {
               this._occupySlot(entry);
               att.state = STATE.USING;
               att.useTimer = 0;
-              att.useDuration = 2 + Math.random() * 3;
+              const baseDur = 2 + Math.random() * 3;
+              const speedMult = this.staff ? this.staff.getServiceSpeedMultiplier(entry) : 1;
+              att.useDuration = baseDur / speedMult;
             } else {
               const q = this._getQueue(entry);
               if (q.length < MAX_QUEUE) {

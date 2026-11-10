@@ -9,17 +9,20 @@ export class InfoPanel {
     this.bodyEl = document.getElementById('info-body');
     this.closeBtn = document.getElementById('close-info');
     this.onUpgrade = null;
+    this.onStaffChange = null;
     this.crowd = null;
     this.festival = null;
+    this.staff = null;
     this._currentEntry = null;
     this._refreshId = null;
 
     this.closeBtn.addEventListener('click', () => this.hide());
   }
 
-  setLiveSources(crowd, festival) {
+  setLiveSources(crowd, festival, staff) {
     this.crowd = crowd;
     this.festival = festival;
+    this.staff = staff || null;
   }
 
   show(entry) {
@@ -46,6 +49,10 @@ export class InfoPanel {
 
     if (this.crowd && this.festival && this.festival.phase === 'hosting') {
       html += this._buildLiveStats(entry);
+    }
+
+    if (this.staff) {
+      html += this._buildStaffSection(entry);
     }
 
     if (STAGE_IDS.includes(b.id)) {
@@ -86,6 +93,53 @@ export class InfoPanel {
         if (this.onUpgrade) this.onUpgrade(entry, upgradeId);
       });
     });
+
+    const hireBtn = this.bodyEl.querySelector('.staff-hire-btn');
+    const fireBtn = this.bodyEl.querySelector('.staff-fire-btn');
+    if (hireBtn) {
+      hireBtn.addEventListener('click', () => {
+        if (this.staff && this.festival && this.festival.phase === 'planning') {
+          if (this.staff.hire(entry)) {
+            if (this.onStaffChange) this.onStaffChange(entry);
+            this._render(entry);
+          }
+        }
+      });
+    }
+    if (fireBtn) {
+      fireBtn.addEventListener('click', () => {
+        if (this.staff && this.festival && this.festival.phase === 'planning') {
+          if (this.staff.fire(entry)) {
+            if (this.onStaffChange) this.onStaffChange(entry);
+            this._render(entry);
+          }
+        }
+      });
+    }
+  }
+
+  _buildStaffSection(entry) {
+    const type = this.staff.getStaffTypeFor(entry.data.id);
+    if (!type) return '';
+    const def = this.staff.getStaffDef(type);
+    const count = this.staff.getCount(entry);
+    const max = this.staff.getMaxStaff();
+    const isPlanning = this.festival && this.festival.phase === 'planning';
+
+    let html = '<div class="staff-section">';
+    html += `<div class="staff-header">${def.icon} Staff: ${count}/${max}</div>`;
+    html += `<div class="staff-type">${def.name} — $${def.salary}/festival</div>`;
+    html += `<div class="staff-effect">${def.effect}</div>`;
+
+    if (isPlanning) {
+      html += '<div class="staff-controls">';
+      html += `<button class="staff-fire-btn"${count <= 0 ? ' disabled' : ''}>- Fire</button>`;
+      html += `<button class="staff-hire-btn"${count >= max ? ' disabled' : ''}>+ Hire</button>`;
+      html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
   }
 
   _buildLiveStats(entry) {

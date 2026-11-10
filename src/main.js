@@ -14,6 +14,7 @@ import { Toolbar } from './ui/toolbar.js';
 import { InfoPanel } from './ui/infoPanel.js';
 import { Tutorial } from './ui/tutorial.js';
 import { getUpgradeById } from './game/upgrades.js';
+import { StaffManager } from './game/staff.js';
 
 // --- Renderer ---
 const canvas = document.getElementById('game-canvas');
@@ -66,8 +67,10 @@ infoPanel.onUpgrade = (entry, upgradeId) => {
     infoPanel.show(entry);
   }
 };
-const festival = new FestivalManager(economy, world, dayNight);
-infoPanel.setLiveSources(crowd, festival);
+const staff = new StaffManager(scene);
+const festival = new FestivalManager(economy, world, dayNight, staff);
+infoPanel.setLiveSources(crowd, festival, staff);
+crowd.setStaff(staff);
 
 const gameState = {
   getPlacedCount: () => world.placed.length,
@@ -204,7 +207,8 @@ function updateFestivalPanel() {
   document.getElementById('price-display').textContent = `$${festival.ticketPrice}`;
   document.getElementById('fest-attendance').textContent = att.toLocaleString();
   document.getElementById('fest-revenue').textContent = `$${rev.toLocaleString()}`;
-  document.getElementById('fest-expenses').textContent = `$${exp.toLocaleString()}`;
+  const staffCost = staff.getTotalSalary();
+  document.getElementById('fest-expenses').textContent = `$${exp.toLocaleString()}${staffCost > 0 ? ` (incl. $${staffCost} staff)` : ''}`;
   const hostBtn = document.getElementById('host-btn');
   const hostHint = document.getElementById('host-hint');
   if (festival.canHostFestival()) {
@@ -433,6 +437,7 @@ canvas.addEventListener('pointerup', e => {
   } else if (currentTool === 'bulldoze' && festival.phase === 'planning') {
     const entry = world.findAtGrid(gx, gz);
     if (entry) {
+      staff.removeBuilding(entry);
       world.remove(entry);
       const refund = Math.floor(entry.data.cost * 0.5);
       economy.earn(refund);
@@ -530,6 +535,7 @@ function loadSlotData(slot) {
     }
     if (saved.festival) festival.loadJSON(saved.festival);
     if (saved.objectives) objectives.loadJSON(saved.objectives);
+    if (saved.staff) staff.loadJSON(saved.staff, world);
     lastUnlockRep = economy.reputation;
     updateSeasonDisplay();
   }
@@ -681,7 +687,8 @@ document.getElementById('main-menu-btn').addEventListener('click', () => {
       economy: economy.toJSON(),
       buildings: world.toJSON(),
       festival: festival.toJSON(),
-      objectives: objectives.toJSON()
+      objectives: objectives.toJSON(),
+      staff: staff.toJSON()
     });
   }
   window.location.href = window.location.pathname + '?t=' + Date.now();
@@ -750,7 +757,8 @@ function animate(time) {
       economy: economy.toJSON(),
       buildings: world.toJSON(),
       festival: festival.toJSON(),
-      objectives: objectives.toJSON()
+      objectives: objectives.toJSON(),
+      staff: staff.toJSON()
     });
     lastSave = time;
   }

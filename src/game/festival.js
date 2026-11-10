@@ -5,10 +5,11 @@ const CAMPING_IDS = ['tent_small', 'tent_large', 'rv_spot', 'glamping_tent', 'ha
 const DECOR_IDS = ['tree_lights', 'banner', 'art_sculpture', 'ferris_wheel', 'fountain', 'string_lights'];
 
 export class FestivalManager {
-  constructor(economy, world, dayNight) {
+  constructor(economy, world, dayNight, staff) {
     this.economy = economy;
     this.world = world;
     this.dayNight = dayNight;
+    this.staff = staff || null;
     this.phase = 'planning';
     this.season = 1;
     this.ticketPrice = 50;
@@ -66,7 +67,8 @@ export class FestivalManager {
       cost += 50;
       totalValue += e.data.cost;
     }
-    return cost + Math.floor(totalValue * 0.02);
+    const staffCost = this.staff ? this.staff.getTotalSalary() : 0;
+    return cost + Math.floor(totalValue * 0.02) + staffCost;
   }
 
   startFestival() {
@@ -95,7 +97,8 @@ export class FestivalManager {
     for (const e of this.world.placed) {
       const base = VENDOR_INCOME[e.data.id];
       if (!base) continue;
-      const earned = Math.floor(base * scale);
+      const staffMult = this.staff ? this.staff.getIncomeMultiplier(e) : 1;
+      const earned = Math.floor(base * scale * staffMult);
       income += earned;
       this.buildingIncome.set(e, (this.buildingIncome.get(e) || 0) + earned);
     }
@@ -139,6 +142,13 @@ export class FestivalManager {
       }
     }
     sat += Math.min(25, upgradeSat);
+    if (this.staff) {
+      let staffSat = 0;
+      for (const e of this.world.placed) {
+        staffSat += this.staff.getSatisfactionBonus(e);
+      }
+      sat += Math.min(20, staffSat);
+    }
     if (this.ticketPrice > 100) sat -= (this.ticketPrice - 100) * 0.1;
     return Math.max(0, Math.min(100, Math.round(sat)));
   }
