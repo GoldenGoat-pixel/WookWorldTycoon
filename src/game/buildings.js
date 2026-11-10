@@ -5,38 +5,51 @@ export const CATEGORIES = {
     label: 'Stages',
     items: [
       {
-        id: 'small_stage',
-        name: 'Small Stage',
+        id: 'medium_stage',
+        name: 'Medium Stage',
         icon: '🎤',
-        cost: 2000,
+        cost: 4000,
         requiredRep: 0,
-        size: [3, 3],
-        capacity: 100,
-        description: 'An intimate stage for solo acts and small bands.',
+        size: [5, 4],
+        capacity: 250,
+        description: 'A solid mid-size stage with room for a full band and gear.',
         build(x, z) {
           const group = new THREE.Group();
-          // Platform
           const platform = new THREE.Mesh(
-            new THREE.BoxGeometry(3, 0.4, 3),
+            new THREE.BoxGeometry(5, 0.5, 4),
             new THREE.MeshLambertMaterial({ color: 0x5c3a1e })
           );
-          platform.position.y = 0.2;
+          platform.position.y = 0.25;
           group.add(platform);
-          // Back wall
           const back = new THREE.Mesh(
-            new THREE.BoxGeometry(3, 2.5, 0.15),
+            new THREE.BoxGeometry(5, 3.5, 0.18),
             new THREE.MeshLambertMaterial({ color: 0x2a2a3e })
           );
-          back.position.set(0, 1.45, -1.4);
+          back.position.set(0, 2, -1.8);
           group.add(back);
-          // Speakers
           for (const side of [-1, 1]) {
-            const speaker = new THREE.Mesh(
-              new THREE.BoxGeometry(0.5, 0.7, 0.5),
-              new THREE.MeshLambertMaterial({ color: 0x1a1a1a })
+            const pillar = new THREE.Mesh(
+              new THREE.BoxGeometry(0.15, 4.5, 0.15),
+              new THREE.MeshLambertMaterial({ color: 0x888888 })
             );
-            speaker.position.set(side * 1.1, 0.75, 1.2);
-            group.add(speaker);
+            pillar.position.set(side * 2.2, 2.25, -1.7);
+            group.add(pillar);
+          }
+          const truss = new THREE.Mesh(
+            new THREE.BoxGeometry(4.6, 0.15, 0.15),
+            new THREE.MeshLambertMaterial({ color: 0x888888 })
+          );
+          truss.position.set(0, 4.5, -1.7);
+          group.add(truss);
+          for (const side of [-1, 1]) {
+            for (let i = 0; i < 2; i++) {
+              const speaker = new THREE.Mesh(
+                new THREE.BoxGeometry(0.6, 0.6, 0.5),
+                new THREE.MeshLambertMaterial({ color: 0x1a1a1a })
+              );
+              speaker.position.set(side * 2, 0.8 + i * 0.65, 1.6);
+              group.add(speaker);
+            }
           }
           group.position.set(x, 0, z);
           return group;

@@ -17,11 +17,11 @@ const STEPS = [
   },
   {
     title: 'The Build Menu',
-    text: "This is where you build your festival. It has 5 categories: Stages, Facilities, Camping, Decor, and Paths & Fences.\n\nLet's start building! Select the Small Stage ($2,000).",
+    text: "This is where you build your festival. It has 5 categories: Stages, Facilities, Camping, Decor, and Paths & Fences.\n\nLet's start building! Select the Medium Stage ($4,000).",
     target: '#build-menu',
     position: 'right',
     type: 'action',
-    waitFor: 'select_small_stage'
+    waitFor: 'select_medium_stage'
   },
   {
     title: 'Place Your Stage!',
@@ -371,8 +371,8 @@ export class Tutorial {
     this._pollTimer = setInterval(() => {
       let done = false;
       switch (waitFor) {
-        case 'select_small_stage':
-          done = gs.getSelectedBuilding()?.id === 'small_stage';
+        case 'select_medium_stage':
+          done = gs.getSelectedBuilding()?.id === 'medium_stage';
           break;
         case 'place_building':
           done = gs.getPlacedCount() > startPlaced;

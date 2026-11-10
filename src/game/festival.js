@@ -1,6 +1,6 @@
 import { getUpgradeById } from './upgrades.js';
 
-const STAGE_IDS = ['small_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'];
+const STAGE_IDS = ['medium_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'];
 const CAMPING_IDS = ['tent_small', 'tent_large', 'rv_spot', 'glamping_tent', 'hammock_grove'];
 const DECOR_IDS = ['tree_lights', 'banner', 'art_sculpture', 'ferris_wheel', 'fountain', 'string_lights'];
 

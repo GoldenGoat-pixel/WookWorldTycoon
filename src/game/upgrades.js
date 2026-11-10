@@ -9,7 +9,7 @@ export const STAGE_UPGRADES = [
     description: 'Tall speaker stacks flanking the stage.',
     satisfaction: 4,
     capacityBonus: 50,
-    applies: ['small_stage', 'dj_booth', 'acoustic_tent'],
+    applies: ['medium_stage', 'dj_booth', 'acoustic_tent'],
     build(entry) {
       const g = new THREE.Group();
       for (const side of [-1, 1]) {
@@ -34,7 +34,7 @@ export const STAGE_UPGRADES = [
     description: 'Heavy bass subs under the stage. You feel it in your chest.',
     satisfaction: 5,
     capacityBonus: 30,
-    applies: ['small_stage', 'main_stage', 'dj_booth', 'mega_stage'],
+    applies: ['medium_stage', 'main_stage', 'dj_booth', 'mega_stage'],
     build(entry) {
       const g = new THREE.Group();
       const count = entry.sizeX >= 6 ? 4 : 2;
@@ -68,7 +68,7 @@ export const STAGE_UPGRADES = [
     description: 'Overhead moving lights on a truss bar.',
     satisfaction: 6,
     capacityBonus: 0,
-    applies: ['small_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'],
+    applies: ['medium_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'],
     build(entry) {
       const g = new THREE.Group();
       const w = entry.sizeX;
@@ -112,7 +112,7 @@ export const STAGE_UPGRADES = [
     description: 'Side LED screens so the back rows can see.',
     satisfaction: 8,
     capacityBonus: 100,
-    applies: ['small_stage', 'dj_booth', 'acoustic_tent'],
+    applies: ['medium_stage', 'dj_booth', 'acoustic_tent'],
     build(entry) {
       const g = new THREE.Group();
       for (const side of [-1, 1]) {
@@ -205,7 +205,7 @@ export const STAGE_UPGRADES = [
     description: 'Low-lying fog across the stage. Sets the atmosphere.',
     satisfaction: 3,
     capacityBonus: 0,
-    applies: ['small_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'],
+    applies: ['medium_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'],
     build(entry) {
       const g = new THREE.Group();
       for (let i = 0; i < 6; i++) {

@@ -1,6 +1,6 @@
 import { getUpgradesForStage, getUpgradeById } from '../game/upgrades.js';
 
-const STAGE_IDS = ['small_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'];
+const STAGE_IDS = ['medium_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'];
 
 export class InfoPanel {
   constructor() {
