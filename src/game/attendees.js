@@ -28,6 +28,30 @@ const NEED_DECAY = {
   bladder: 4
 };
 
+const SERVICE_SLOTS = {
+  food_tent: 4,
+  bar: 5,
+  toilets: 3,
+  vip_lounge: 6,
+  fountain: 8,
+  tent_small: 2,
+  tent_large: 4,
+  glamping_tent: 2,
+  hammock_grove: 4,
+  rv_spot: 3,
+  merch_stand: 3,
+  med_tent: 2,
+  ferris_wheel: 6,
+  medium_stage: 30,
+  main_stage: 50,
+  dj_booth: 20,
+  acoustic_tent: 12,
+  mega_stage: 80,
+  art_sculpture: 10
+};
+
+const MAX_QUEUE = 6;
+
 const NEED_THRESHOLD = 60;
 const CRITICAL_THRESHOLD = 85;
 
@@ -38,7 +62,8 @@ const BUBBLE_ICONS = {
   energy:  '😴',
   bladder: '🚽',
   happy:   '❤️',
-  angry:   '😡'
+  angry:   '😡',
+  queue:   '⏳'
 };
 
 const _bubbleTextures = {};
@@ -77,7 +102,8 @@ const STATE = {
   SEEKING: 2,
   USING: 3,
   DANCING: 4,
-  LEAVING: 5
+  LEAVING: 5,
+  QUEUING: 6
 };
 
 function dist2D(a, b) {
@@ -145,6 +171,8 @@ export class AttendeeManager {
     this.maxAttendees = 300;
     this.spawnTimer = 0;
     this.stats = { totalSpending: 0, avgSatisfaction: 0, left: 0, unhappyLeft: 0 };
+    this._users = new Map();
+    this._queues = new Map();
     this._tmpVec = new THREE.Vector3();
   }
 
@@ -212,6 +240,45 @@ export class AttendeeManager {
     this.pool.push(att.mesh);
   }
 
+  _getMaxSlots(entry) {
+    return SERVICE_SLOTS[entry.data.id] || 999;
+  }
+
+  _getUserCount(entry) {
+    return this._users.get(entry) || 0;
+  }
+
+  _getQueue(entry) {
+    let q = this._queues.get(entry);
+    if (!q) { q = []; this._queues.set(entry, q); }
+    return q;
+  }
+
+  _occupySlot(entry) {
+    this._users.set(entry, (this._users.get(entry) || 0) + 1);
+  }
+
+  _releaseSlot(entry) {
+    const count = (this._users.get(entry) || 1) - 1;
+    if (count <= 0) this._users.delete(entry);
+    else this._users.set(entry, count);
+  }
+
+  _hasOpenSlot(entry) {
+    return this._getUserCount(entry) < this._getMaxSlots(entry);
+  }
+
+  _promoteFromQueue(entry) {
+    const q = this._queues.get(entry);
+    if (!q || q.length === 0) return;
+    const next = q.shift();
+    if (next.state !== STATE.QUEUING) return;
+    this._occupySlot(entry);
+    next.state = STATE.USING;
+    next.useTimer = 0;
+    next.useDuration = 2 + Math.random() * 3;
+  }
+
   _findBuildingsForNeed(need) {
     const ids = NEED_BUILDINGS[need];
     if (!ids) return [];
@@ -223,11 +290,15 @@ export class AttendeeManager {
     if (buildings.length === 0) return null;
 
     let best = null;
-    let bestDist = Infinity;
+    let bestScore = Infinity;
     for (const entry of buildings) {
       const d = dist2D(att.mesh.position, { x: entry.gridX, z: entry.gridZ + entry.sizeZ / 2 + 1 });
-      if (d < bestDist) {
-        bestDist = d;
+      const q = this._getQueue(entry).length;
+      const full = this._hasOpenSlot(entry) ? 0 : 1;
+      if (full && q >= MAX_QUEUE) continue;
+      const score = d + full * 10 + q * 3;
+      if (score < bestScore) {
+        bestScore = score;
         best = entry;
       }
     }
@@ -307,6 +378,8 @@ export class AttendeeManager {
 
     if (att.state === STATE.LEAVING && att.satisfaction < 20) {
       this._showBubble(att, 'angry', true);
+    } else if (att.state === STATE.QUEUING) {
+      this._showBubble(att, 'queue', !!critical);
     } else if (att.state === STATE.DANCING) {
       this._showBubble(att, 'happy', false);
     } else if (critical) {
@@ -418,8 +491,19 @@ export class AttendeeManager {
       totalSat += att.satisfaction;
 
       if ((att.satisfaction < 20 || att.lifetime <= 0) && att.state !== STATE.LEAVING) {
+        if (att.state === STATE.QUEUING && att.targetEntry) {
+          const q = this._getQueue(att.targetEntry);
+          const idx = q.indexOf(att);
+          if (idx !== -1) q.splice(idx, 1);
+        }
+        if (att.state === STATE.USING && att.targetEntry) {
+          this._releaseSlot(att.targetEntry);
+          this._promoteFromQueue(att.targetEntry);
+        }
         att.state = STATE.LEAVING;
         att.target = this._getExitTarget(att);
+        att.targetEntry = null;
+        att._seekingNeed = null;
         if (att.satisfaction < 20) this.stats.unhappyLeft++;
       }
 
@@ -431,24 +515,24 @@ export class AttendeeManager {
           if (!att.target) att.target = this._pickWanderTarget(att);
           if (!att.target) break;
 
+          const urgent = att.getMostUrgentNeed();
+          if (urgent && !att.targetEntry) {
+            const entry = this._findNearestBuilding(att, urgent);
+            if (entry) {
+              att.state = STATE.SEEKING;
+              att.targetEntry = entry;
+              att.target = new THREE.Vector3(
+                entry.gridX + (Math.random() - 0.5) * entry.sizeX * 0.5,
+                0,
+                entry.gridZ + entry.sizeZ / 2 + 0.8
+              );
+              att._seekingNeed = urgent;
+              break;
+            }
+          }
+
           const arrived = this._moveToward(att, att.target, dt);
           if (arrived) {
-            const urgent = att.getMostUrgentNeed();
-            if (urgent) {
-              const entry = this._findNearestBuilding(att, urgent);
-              if (entry) {
-                att.state = STATE.SEEKING;
-                att.targetEntry = entry;
-                att.target = new THREE.Vector3(
-                  entry.gridX + (Math.random() - 0.5) * entry.sizeX * 0.5,
-                  0,
-                  entry.gridZ + entry.sizeZ / 2 + 0.8
-                );
-                att._seekingNeed = urgent;
-                break;
-              }
-            }
-
             const stageNearby = this.world.placed.find(e => {
               const ids = NEED_BUILDINGS.fun;
               if (!ids.includes(e.data.id)) return false;
@@ -471,10 +555,51 @@ export class AttendeeManager {
         case STATE.SEEKING: {
           if (!att.target) { att.state = STATE.WANDERING; break; }
           const arrived = this._moveToward(att, att.target, dt);
-          if (arrived) {
-            att.state = STATE.USING;
-            att.useTimer = 0;
-            att.useDuration = 2 + Math.random() * 3;
+          if (arrived && att.targetEntry) {
+            const entry = att.targetEntry;
+            if (this._hasOpenSlot(entry)) {
+              this._occupySlot(entry);
+              att.state = STATE.USING;
+              att.useTimer = 0;
+              att.useDuration = 2 + Math.random() * 3;
+            } else {
+              const q = this._getQueue(entry);
+              if (q.length < MAX_QUEUE) {
+                q.push(att);
+                att.state = STATE.QUEUING;
+                att.wanderTimer = 8 + Math.random() * 6;
+                const slot = q.length;
+                att.target = new THREE.Vector3(
+                  entry.gridX + (slot % 3 - 1) * 0.6,
+                  0,
+                  entry.gridZ + entry.sizeZ / 2 + 1.2 + Math.floor(slot / 3) * 0.6
+                );
+              } else {
+                att.satisfaction = Math.max(0, att.satisfaction - 3);
+                att.state = STATE.WANDERING;
+                att.target = this._pickWanderTarget(att);
+                att.targetEntry = null;
+                att._seekingNeed = null;
+              }
+            }
+          }
+          break;
+        }
+
+        case STATE.QUEUING: {
+          if (!att.targetEntry) { att.state = STATE.WANDERING; break; }
+          this._moveToward(att, att.target, dt);
+          att.wanderTimer -= dt;
+          att.mesh.position.y = Math.abs(Math.sin(performance.now() * 0.005 + att.dancePhase)) * 0.02;
+          if (att.wanderTimer <= 0) {
+            const q = this._getQueue(att.targetEntry);
+            const idx = q.indexOf(att);
+            if (idx !== -1) q.splice(idx, 1);
+            att.satisfaction = Math.max(0, att.satisfaction - 5);
+            att.state = STATE.WANDERING;
+            att.target = this._pickWanderTarget(att);
+            att.targetEntry = null;
+            att._seekingNeed = null;
           }
           break;
         }
@@ -489,11 +614,15 @@ export class AttendeeManager {
             }
 
             const entry = att.targetEntry;
-            if (entry && entry.data.income) {
-              const spend = 2 + Math.floor(Math.random() * 5);
-              this.economy.earn(spend);
-              att.spending += spend;
-              this.stats.totalSpending += spend;
+            if (entry) {
+              if (entry.data.income) {
+                const spend = 2 + Math.floor(Math.random() * 5);
+                this.economy.earn(spend);
+                att.spending += spend;
+                this.stats.totalSpending += spend;
+              }
+              this._releaseSlot(entry);
+              this._promoteFromQueue(entry);
             }
 
             att.satisfaction = Math.min(100, att.satisfaction + 5);
@@ -548,6 +677,8 @@ export class AttendeeManager {
       this.pool.push(att.mesh);
     }
     this.attendees.length = 0;
+    this._users.clear();
+    this._queues.clear();
     this.stats = { totalSpending: 0, avgSatisfaction: 0, left: 0, unhappyLeft: 0 };
   }
 
