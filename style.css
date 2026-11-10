@@ -1030,13 +1030,14 @@ html, body {
     right: 8px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     background: rgba(20, 20, 40, 0.92);
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: 12px;
-    padding: 8px 12px;
+    padding: 6px 8px;
     z-index: 600;
     backdrop-filter: blur(6px);
+    overflow: hidden;
   }
 
   #build-sliders.hidden {
@@ -1046,15 +1047,17 @@ html, body {
   .slider-row {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     flex: 1;
+    min-width: 0;
   }
 
   .slider-row label {
     color: #aaa;
-    font-size: 16px;
-    width: 18px;
+    font-size: 14px;
+    width: 14px;
     text-align: center;
+    flex-shrink: 0;
   }
 
   .slider-row input[type="range"] {
@@ -1086,8 +1089,10 @@ html, body {
     background: linear-gradient(135deg, #27ae60, #2ecc71);
     border: none;
     border-radius: 8px;
-    padding: 6px 14px;
+    padding: 6px 10px;
     color: #fff;
+    flex-shrink: 0;
+    white-space: nowrap;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -1098,8 +1103,9 @@ html, body {
     background: rgba(255,255,255,0.12);
     border: 1px solid rgba(255,255,255,0.2);
     border-radius: 8px;
-    padding: 6px 8px;
+    padding: 6px 6px;
     color: #ccc;
+    flex-shrink: 0;
     font-size: 16px;
     cursor: pointer;
   }
