@@ -191,9 +191,14 @@ export class AttendeeManager {
     const interesting = this.world.placed.filter(e => e.data.capacity || e.data.income);
     const pool = interesting.length > 0 ? interesting : this.world.placed;
     const entry = pool[Math.floor(Math.random() * pool.length)];
-    const ox = (Math.random() - 0.5) * (entry.sizeX + 4);
-    const oz = (Math.random() - 0.5) * (entry.sizeZ + 4);
-    return new THREE.Vector3(entry.gridX + ox, 0, entry.gridZ + oz + 2);
+    for (let tries = 0; tries < 6; tries++) {
+      const ox = (Math.random() - 0.5) * (entry.sizeX + 6);
+      const oz = entry.sizeZ / 2 + 1.5 + Math.random() * 2;
+      const tx = entry.gridX + ox;
+      const tz = entry.gridZ + oz;
+      if (!this._isOccupied(tx, tz)) return new THREE.Vector3(tx, 0, tz);
+    }
+    return new THREE.Vector3(entry.gridX, 0, entry.gridZ + entry.sizeZ / 2 + 2);
   }
 
   _getEntryPoint() {
@@ -225,16 +230,52 @@ export class AttendeeManager {
     return nearest;
   }
 
+  _isOccupied(x, z) {
+    return this.world.occupied.has(`${Math.round(x)},${Math.round(z)}`);
+  }
+
   _moveToward(att, target, dt) {
     const dir = this._tmpVec;
     dir.set(target.x - att.mesh.position.x, 0, target.z - att.mesh.position.z);
     const d = dir.length();
     if (d < 0.5) return true;
     dir.normalize();
-    att.mesh.position.x += dir.x * att.speed * dt;
-    att.mesh.position.z += dir.z * att.speed * dt;
+
+    const step = att.speed * dt;
+    let nx = att.mesh.position.x + dir.x * step;
+    let nz = att.mesh.position.z + dir.z * step;
+
+    if (this._isOccupied(nx, nz)) {
+      const tryX = !this._isOccupied(nx, att.mesh.position.z);
+      const tryZ = !this._isOccupied(att.mesh.position.x, nz);
+
+      if (tryX && !tryZ) {
+        nz = att.mesh.position.z;
+      } else if (tryZ && !tryX) {
+        nx = att.mesh.position.x;
+      } else if (tryX && tryZ) {
+        if (Math.abs(dir.x) > Math.abs(dir.z)) {
+          nz = att.mesh.position.z;
+        } else {
+          nx = att.mesh.position.x;
+        }
+      } else {
+        const nudge = ((att.dancePhase * 1000) & 1) ? 1 : -1;
+        nx = att.mesh.position.x + nudge * step * 0.5;
+        nz = att.mesh.position.z;
+        if (this._isOccupied(nx, nz)) {
+          nx = att.mesh.position.x;
+          nz = att.mesh.position.z + nudge * step * 0.5;
+        }
+      }
+    }
+
+    const mx = nx - att.mesh.position.x;
+    const mz = nz - att.mesh.position.z;
+    att.mesh.position.x = nx;
+    att.mesh.position.z = nz;
     att.mesh.position.y = Math.abs(Math.sin(performance.now() * 0.008 + att.dancePhase)) * 0.04;
-    att.mesh.rotation.y = Math.atan2(dir.x, dir.z);
+    if (mx !== 0 || mz !== 0) att.mesh.rotation.y = Math.atan2(mx, mz);
     return false;
   }
 
