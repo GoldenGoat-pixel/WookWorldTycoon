@@ -98,7 +98,8 @@ export class FestivalManager {
       const base = VENDOR_INCOME[e.data.id];
       if (!base) continue;
       const staffMult = this.staff ? this.staff.getIncomeMultiplier(e) : 1;
-      const earned = Math.floor(base * scale * staffMult);
+      const evtMult = this.events ? this.events.getActiveIncomeMult(e.data.id) : 1;
+      const earned = Math.floor(base * scale * staffMult * evtMult);
       income += earned;
       this.buildingIncome.set(e, (this.buildingIncome.get(e) || 0) + earned);
     }

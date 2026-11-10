@@ -175,10 +175,15 @@ export class AttendeeManager {
     this._queues = new Map();
     this._tmpVec = new THREE.Vector3();
     this.staff = null;
+    this.events = null;
   }
 
   setStaff(staffManager) {
     this.staff = staffManager;
+  }
+
+  setEvents(eventManager) {
+    this.events = eventManager;
   }
 
   _createMesh() {
@@ -430,7 +435,8 @@ export class AttendeeManager {
     dir.normalize();
 
     const onPath = this._isOnPath(att.mesh.position.x, att.mesh.position.z);
-    const step = att.speed * (onPath ? 1.8 : 1) * dt;
+    const evtSpeed = this.events ? this.events.getActiveSpeedMult() : 1;
+    const step = att.speed * (onPath ? 1.8 : 1) * evtSpeed * dt;
 
     if (!onPath && d > 3) {
       for (let ox = -1; ox <= 1; ox++) {
@@ -515,7 +521,8 @@ export class AttendeeManager {
       const att = this.attendees[i];
 
       for (const need of Object.keys(att.needs)) {
-        att.needs[need] = Math.min(100, att.needs[need] + NEED_DECAY[need] * dt);
+        const evtMult = this.events ? this.events.getActiveNeedDecayMult(need) : 1;
+        att.needs[need] = Math.min(100, att.needs[need] + NEED_DECAY[need] * evtMult * dt);
       }
 
       att.lifetime -= dt;
@@ -525,7 +532,8 @@ export class AttendeeManager {
         if (val > CRITICAL_THRESHOLD) unhappy += 2;
         else if (val > NEED_THRESHOLD) unhappy += 1;
       }
-      att.satisfaction = Math.max(0, Math.min(100, att.satisfaction - unhappy * dt * 0.5 + (unhappy === 0 ? dt * 2 : 0)));
+      const evtSatRate = this.events ? this.events.getActiveSatisfactionRate() : 0;
+      att.satisfaction = Math.max(0, Math.min(100, att.satisfaction - unhappy * dt * 0.5 + (unhappy === 0 ? dt * 2 : 0) + evtSatRate * dt));
       totalSat += att.satisfaction;
 
       if ((att.satisfaction < 20 || att.lifetime <= 0) && att.state !== STATE.LEAVING) {

@@ -15,6 +15,7 @@ import { InfoPanel } from './ui/infoPanel.js';
 import { Tutorial } from './ui/tutorial.js';
 import { getUpgradeById } from './game/upgrades.js';
 import { StaffManager } from './game/staff.js';
+import { EventManager } from './game/events.js';
 
 // --- Renderer ---
 const canvas = document.getElementById('game-canvas');
@@ -68,9 +69,25 @@ infoPanel.onUpgrade = (entry, upgradeId) => {
   }
 };
 const staff = new StaffManager(scene);
+const events = new EventManager();
 const festival = new FestivalManager(economy, world, dayNight, staff);
 infoPanel.setLiveSources(crowd, festival, staff);
 crowd.setStaff(staff);
+crowd.setEvents(events);
+festival.events = events;
+
+events.onEvent = (evt) => {
+  showToast(`${evt.icon} ${evt.message}`);
+  updateEventBanner();
+  if (evt.effects.satisfactionFlat) {
+    for (const att of crowd.attendees) {
+      att.satisfaction = Math.max(0, Math.min(100, att.satisfaction + evt.effects.satisfactionFlat));
+    }
+  }
+};
+events.onEventEnd = () => {
+  updateEventBanner();
+};
 
 const gameState = {
   getPlacedCount: () => world.placed.length,
@@ -255,6 +272,17 @@ function showResults(r) {
   resultsOverlay.classList.remove('hidden');
 }
 
+function updateEventBanner() {
+  const el = document.getElementById('event-banner');
+  if (!el) return;
+  if (events.active) {
+    el.textContent = `${events.active.icon} ${events.active.name} — ${events.active.tip}`;
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
 function updateLiveHUD() {
   document.getElementById('live-day').textContent = festival.currentFestivalDay;
   document.getElementById('live-total').textContent = festival.festivalDaysTotal;
@@ -314,6 +342,7 @@ festival.onPhaseChange = (phase) => {
     festivalLive.classList.remove('hidden');
     toolbarEl.classList.add('hosting');
     buildMenu.hide();
+    events.reset();
     if (currentTool === 'build' || currentTool === 'bulldoze') {
       currentTool = 'select';
       toolbar.setTool('select');
@@ -323,6 +352,8 @@ festival.onPhaseChange = (phase) => {
     sounds.playPlace();
   } else if (phase === 'results') {
     festivalLive.classList.add('hidden');
+    const evtBanner = document.getElementById('event-banner');
+    if (evtBanner) evtBanner.classList.add('hidden');
     crowd.clear();
     sounds.stopFestivalAmbience();
     sounds.playVictoryFanfare();
@@ -727,7 +758,13 @@ function animate(time) {
   if (festival.phase === 'hosting' && time - lastVendorTick > VENDOR_TICK_INTERVAL) {
     festival.vendorTick();
     updateLiveHUD();
+    updateEventBanner();
     lastVendorTick = time;
+  }
+
+  // Events during hosting
+  if (festival.phase === 'hosting') {
+    events.update(dt);
   }
 
   // Crowd simulation
