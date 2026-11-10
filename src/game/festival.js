@@ -1,3 +1,5 @@
+import { getUpgradeById } from './upgrades.js';
+
 const STAGE_IDS = ['small_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'];
 const CAMPING_IDS = ['tent_small', 'tent_large', 'rv_spot', 'glamping_tent', 'hammock_grove'];
 const DECOR_IDS = ['tree_lights', 'banner', 'art_sculpture', 'ferris_wheel', 'fountain', 'string_lights'];
@@ -40,6 +42,10 @@ export class FestivalManager {
     let cap = 0;
     for (const e of this.world.placed) {
       if (e.data.capacity) cap += e.data.capacity;
+      for (const u of e.upgrades) {
+        const upg = getUpgradeById(u.id);
+        if (upg) cap += upg.capacityBonus;
+      }
     }
     return cap;
   }
@@ -120,6 +126,14 @@ export class FestivalManager {
     sat += Math.min(15, stageTypes.size * 5);
     sat += Math.min(1, camping / Math.max(1, Math.ceil(att / 50))) * 10;
     sat += Math.min(10, decor * 2);
+    let upgradeSat = 0;
+    for (const e of this.world.placed) {
+      for (const u of e.upgrades) {
+        const upg = getUpgradeById(u.id);
+        if (upg) upgradeSat += upg.satisfaction;
+      }
+    }
+    sat += Math.min(25, upgradeSat);
     if (this.ticketPrice > 100) sat -= (this.ticketPrice - 100) * 0.1;
     return Math.max(0, Math.min(100, Math.round(sat)));
   }

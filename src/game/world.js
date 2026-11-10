@@ -222,15 +222,28 @@ export class World {
       }
     }
 
-    const entry = { id: building.id, mesh, gridX: gx, gridZ: gz, sizeX, sizeZ, rotation, data: building };
+    const entry = { id: building.id, mesh, gridX: gx, gridZ: gz, sizeX, sizeZ, rotation, data: building, upgrades: [] };
     this.placed.push(entry);
     return entry;
+  }
+
+  addUpgrade(entry, upgrade) {
+    if (entry.upgrades.some(u => u.id === upgrade.id)) return false;
+    const mesh = upgrade.build(entry);
+    mesh.position.set(entry.gridX, 0, entry.gridZ);
+    mesh.rotation.y = entry.rotation;
+    this.scene.add(mesh);
+    entry.upgrades.push({ id: upgrade.id, mesh });
+    return true;
   }
 
   remove(entry) {
     const idx = this.placed.indexOf(entry);
     if (idx === -1) return;
     this.scene.remove(entry.mesh);
+    for (const u of entry.upgrades) {
+      this.scene.remove(u.mesh);
+    }
     for (let dx = 0; dx < entry.sizeX; dx++) {
       for (let dz = 0; dz < entry.sizeZ; dz++) {
         const cx = entry.gridX + dx - Math.floor(entry.sizeX / 2);
@@ -285,7 +298,8 @@ export class World {
       id: e.id,
       x: e.gridX,
       z: e.gridZ,
-      rotation: e.rotation
+      rotation: e.rotation,
+      upgrades: e.upgrades.map(u => u.id)
     }));
   }
 }

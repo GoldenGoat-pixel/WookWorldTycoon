@@ -13,6 +13,7 @@ import { BuildMenu } from './ui/buildMenu.js';
 import { Toolbar } from './ui/toolbar.js';
 import { InfoPanel } from './ui/infoPanel.js';
 import { Tutorial } from './ui/tutorial.js';
+import { getUpgradeById } from './game/upgrades.js';
 
 // --- Renderer ---
 const canvas = document.getElementById('game-canvas');
@@ -51,6 +52,20 @@ const crowd = new CrowdSystem(scene, world);
 const dayNight = new DayNightCycle(scene, sun);
 const sounds = new SoundSystem();
 const infoPanel = new InfoPanel();
+infoPanel.onUpgrade = (entry, upgradeId) => {
+  const upg = getUpgradeById(upgradeId);
+  if (!upg) return;
+  if (economy.money < upg.cost) {
+    showToast('Not enough money!');
+    return;
+  }
+  if (world.addUpgrade(entry, upg)) {
+    economy.spend(upg.cost);
+    sounds.playPlace();
+    showToast(`${upg.icon} ${upg.name} installed!`);
+    infoPanel.show(entry);
+  }
+};
 const festival = new FestivalManager(economy, world, dayNight);
 
 const gameState = {
@@ -488,7 +503,15 @@ function loadSlotData(slot) {
     if (saved.buildings) {
       for (const b of saved.buildings) {
         const building = getBuildingById(b.id);
-        if (building) world.place(b.x, b.z, building, b.rotation || 0);
+        if (building) {
+          const entry = world.place(b.x, b.z, building, b.rotation || 0);
+          if (entry && b.upgrades) {
+            for (const uid of b.upgrades) {
+              const upg = getUpgradeById(uid);
+              if (upg) world.addUpgrade(entry, upg);
+            }
+          }
+        }
       }
     }
     if (saved.festival) festival.loadJSON(saved.festival);

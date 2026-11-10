@@ -434,7 +434,41 @@ html, body {
   width: 260px;
 }
 
-#info-body { padding: 12px 16px; font-size: 14px; line-height: 1.5; }
+#info-body { padding: 12px 16px; font-size: 14px; line-height: 1.5; max-height: 50vh; overflow-y: auto; }
+
+.info-desc { color: var(--text-dim, #aaa); margin: 0 0 6px; }
+.info-stat { margin: 2px 0; }
+
+.upgrade-section { margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; }
+.upgrade-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 6px; }
+.upgrade-label.upgrade-complete { color: #2ecc71; }
+
+.upgrade-installed {
+  font-size: 13px;
+  padding: 4px 8px;
+  margin-bottom: 3px;
+  color: #8f8;
+  background: rgba(46, 204, 113, 0.1);
+  border-radius: 6px;
+}
+
+.upgrade-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: #eee;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.upgrade-btn:active { background: rgba(255,255,255,0.15); }
+.upgrade-btn-cost { color: #2ecc71; font-weight: bold; font-size: 12px; }
 
 /* Mobile adjustments */
 @media (max-width: 600px) {
