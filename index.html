@@ -57,6 +57,16 @@
     <div class="live-item">🎵 Day <span id="live-day">1</span> / <span id="live-total">3</span></div>
     <div class="live-item">🍔 Vendor Sales: $<span id="live-vendor">0</span></div>
     <div class="live-item">😊 Crowd Mood: <span id="live-mood">--</span></div>
+    <button id="mood-btn" class="live-btn">📊</button>
+  </div>
+
+  <!-- Mood breakdown (during hosting) -->
+  <div id="mood-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2>📊 Mood Breakdown</h2>
+      <button id="close-mood" class="close-btn">&times;</button>
+    </div>
+    <div id="mood-body"></div>
   </div>
 
   <!-- Event banner (active weather/event) -->
@@ -129,6 +139,14 @@
         <div class="res-divider"></div>
         <div class="res-row total"><span>Net Profit</span><span id="res-profit">$0</span></div>
         <div class="res-row"><span>Reputation Earned</span><span id="res-rep" class="rep">+0 ⭐</span></div>
+      </div>
+      <button id="res-breakdown-toggle" class="breakdown-toggle">📊 Satisfaction Breakdown</button>
+      <div id="res-breakdown" class="breakdown hidden">
+        <div class="breakdown-header">
+          <span>Structural: <strong id="res-structural">--</strong></span>
+          <span>Live Mood: <strong id="res-live">--</strong></span>
+        </div>
+        <div id="res-factors"></div>
       </div>
       <button id="continue-btn" class="host-btn">Continue to Next Season →</button>
     </div>

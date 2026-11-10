@@ -269,7 +269,32 @@ function showResults(r) {
   profitEl.textContent = (r.netProfit >= 0 ? '+' : '') + `$${r.netProfit.toLocaleString()}`;
   profitEl.style.color = r.netProfit >= 0 ? 'var(--money)' : 'var(--accent)';
   document.getElementById('res-rep').textContent = `+${r.reputationEarned} ⭐`;
+
+  // Satisfaction breakdown
+  const breakdownEl = document.getElementById('res-breakdown');
+  breakdownEl.classList.add('hidden');
+  if (r.satisfactionBreakdown) {
+    document.getElementById('res-structural').textContent = `${r.structuralSatisfaction}%`;
+    document.getElementById('res-live').textContent = `${Math.round(r.liveSatisfaction)}%`;
+    document.getElementById('res-factors').innerHTML = renderFactors(r.satisfactionBreakdown);
+  }
+
   resultsOverlay.classList.remove('hidden');
+}
+
+function renderFactors(factors) {
+  return factors.map(f => {
+    const maxBar = 15;
+    const pct = Math.min(100, Math.abs(f.value) / maxBar * 100);
+    const cls = f.value >= 0 ? 'positive' : 'negative';
+    const sign = f.value > 0 ? '+' : '';
+    return `<div class="breakdown-factor">
+      <span class="bf-icon">${f.icon}</span>
+      <span class="bf-label">${f.label}</span>
+      <div class="bf-bar"><div class="bf-fill ${cls}" style="width:${pct}%"></div></div>
+      <span class="bf-value ${cls}">${sign}${f.value}</span>
+    </div>`;
+  }).join('');
 }
 
 function updateEventBanner() {
@@ -352,6 +377,7 @@ festival.onPhaseChange = (phase) => {
     sounds.playPlace();
   } else if (phase === 'results') {
     festivalLive.classList.add('hidden');
+    document.getElementById('mood-panel').classList.add('hidden');
     const evtBanner = document.getElementById('event-banner');
     if (evtBanner) evtBanner.classList.add('hidden');
     crowd.clear();
@@ -418,6 +444,41 @@ document.getElementById('close-objectives').addEventListener('click', () => {
 document.getElementById('continue-btn').addEventListener('click', () => {
   festival.continueToPlanning();
 });
+
+document.getElementById('res-breakdown-toggle').addEventListener('click', () => {
+  document.getElementById('res-breakdown').classList.toggle('hidden');
+});
+
+document.getElementById('mood-btn').addEventListener('click', () => {
+  const moodPanel = document.getElementById('mood-panel');
+  moodPanel.classList.toggle('hidden');
+  if (!moodPanel.classList.contains('hidden')) {
+    updateMoodPanel();
+  }
+});
+
+document.getElementById('close-mood').addEventListener('click', () => {
+  document.getElementById('mood-panel').classList.add('hidden');
+});
+
+function updateMoodPanel() {
+  const body = document.getElementById('mood-body');
+  if (!body) return;
+  const { score, factors } = festival.getSatisfactionBreakdown();
+  const liveMood = crowd.getLiveSatisfaction();
+  const blended = Math.round(score * 0.4 + liveMood * 0.6);
+  body.innerHTML = `
+    <div class="breakdown-header">
+      <span>Structural: <strong>${score}%</strong></span>
+      <span>Live Mood: <strong>${liveMood}%</strong></span>
+      <span>Blended: <strong>${blended}%</strong></span>
+    </div>
+    ${renderFactors(factors)}
+    <div style="margin-top:8px;font-size:11px;color:var(--text-dim)">
+      Final score = 40% structural + 60% live mood
+    </div>
+  `;
+}
 
 // --- Pointer events ---
 canvas.addEventListener('pointerdown', e => {

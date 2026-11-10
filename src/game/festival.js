@@ -112,10 +112,13 @@ export class FestivalManager {
     return this.buildingIncome.get(entry) || 0;
   }
 
-  calculateSatisfaction() {
+  getSatisfactionBreakdown() {
     const att = this.festivalAttendance;
-    if (att === 0) return 0;
+    if (att === 0) return { score: 0, factors: [] };
+    const factors = [];
     let sat = 50;
+    factors.push({ label: 'Base', value: 50, icon: '🏕️' });
+
     let food = 0, bar = 0, restroom = 0, medical = 0;
     const stageTypes = new Set();
     let camping = 0, decor = 0;
@@ -129,12 +132,34 @@ export class FestivalManager {
       if (CAMPING_IDS.includes(id)) camping++;
       if (DECOR_IDS.includes(id)) decor++;
     }
-    sat += Math.min(1, (food + bar) / Math.max(1, Math.ceil(att / 100))) * 15;
-    sat += Math.min(1, restroom / Math.max(1, Math.ceil(att / 150))) * 10;
-    if (medical > 0) sat += 5;
-    sat += Math.min(15, stageTypes.size * 5);
-    sat += Math.min(1, camping / Math.max(1, Math.ceil(att / 50))) * 10;
-    sat += Math.min(10, decor * 2);
+
+    const foodNeeded = Math.max(1, Math.ceil(att / 100));
+    const foodVal = Math.min(1, (food + bar) / foodNeeded) * 15;
+    sat += foodVal;
+    factors.push({ label: `Food & Drink (${food + bar}/${foodNeeded})`, value: +foodVal.toFixed(1), icon: '🍔' });
+
+    const restroomNeeded = Math.max(1, Math.ceil(att / 150));
+    const restroomVal = Math.min(1, restroom / restroomNeeded) * 10;
+    sat += restroomVal;
+    factors.push({ label: `Restrooms (${restroom}/${restroomNeeded})`, value: +restroomVal.toFixed(1), icon: '🚽' });
+
+    const medVal = medical > 0 ? 5 : 0;
+    sat += medVal;
+    factors.push({ label: 'Medical Tent', value: medVal, icon: '🏥' });
+
+    const stageVal = Math.min(15, stageTypes.size * 5);
+    sat += stageVal;
+    factors.push({ label: `Stage Variety (${stageTypes.size} types)`, value: stageVal, icon: '🎵' });
+
+    const campNeeded = Math.max(1, Math.ceil(att / 50));
+    const campVal = Math.min(1, camping / campNeeded) * 10;
+    sat += campVal;
+    factors.push({ label: `Camping (${camping}/${campNeeded})`, value: +campVal.toFixed(1), icon: '⛺' });
+
+    const decorVal = Math.min(10, decor * 2);
+    sat += decorVal;
+    factors.push({ label: `Decor (${decor} items)`, value: decorVal, icon: '🎨' });
+
     let upgradeSat = 0;
     for (const e of this.world.placed) {
       for (const u of e.upgrades) {
@@ -142,16 +167,31 @@ export class FestivalManager {
         if (upg) upgradeSat += upg.satisfaction;
       }
     }
-    sat += Math.min(25, upgradeSat);
+    const upVal = Math.min(25, upgradeSat);
+    sat += upVal;
+    if (upVal > 0) factors.push({ label: 'Upgrades', value: upVal, icon: '⬆️' });
+
     if (this.staff) {
       let staffSat = 0;
       for (const e of this.world.placed) {
         staffSat += this.staff.getSatisfactionBonus(e);
       }
-      sat += Math.min(20, staffSat);
+      const sVal = Math.min(20, staffSat);
+      sat += sVal;
+      if (sVal > 0) factors.push({ label: 'Staff', value: +sVal.toFixed(1), icon: '👷' });
     }
-    if (this.ticketPrice > 100) sat -= (this.ticketPrice - 100) * 0.1;
-    return Math.max(0, Math.min(100, Math.round(sat)));
+
+    if (this.ticketPrice > 100) {
+      const penalty = -((this.ticketPrice - 100) * 0.1);
+      sat += penalty;
+      factors.push({ label: 'Overpriced Tickets', value: +penalty.toFixed(1), icon: '💸' });
+    }
+
+    return { score: Math.max(0, Math.min(100, Math.round(sat))), factors };
+  }
+
+  calculateSatisfaction() {
+    return this.getSatisfactionBreakdown().score;
   }
 
   update(dt) {
@@ -163,7 +203,8 @@ export class FestivalManager {
   }
 
   _endFestival() {
-    const structural = this.calculateSatisfaction();
+    const breakdown = this.getSatisfactionBreakdown();
+    const structural = breakdown.score;
     const live = this.liveSatisfaction != null ? this.liveSatisfaction : structural;
     const satisfaction = Math.round(structural * 0.4 + live * 0.6);
     const netProfit = this.ticketRevenue + this.vendorRevenue - this.expenses;
@@ -183,6 +224,9 @@ export class FestivalManager {
       expenses: this.expenses,
       netProfit,
       satisfaction,
+      structuralSatisfaction: structural,
+      liveSatisfaction: live,
+      satisfactionBreakdown: breakdown.factors,
       reputationEarned: repEarned,
       totalReputation: this.economy.reputation
     };
