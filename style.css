@@ -659,7 +659,7 @@ html, body {
 /* Festival controls */
 #festival-controls {
   position: fixed;
-  top: 60px;
+  top: 64px;
   right: 16px;
   display: flex;
   gap: 8px;
@@ -778,7 +778,7 @@ html, body {
 /* Festival live HUD */
 #festival-live {
   position: fixed;
-  top: 60px;
+  top: 64px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -786,9 +786,11 @@ html, body {
   z-index: 15;
 }
 
+#festival-live.hidden { display: none; }
+
 #event-banner {
   position: fixed;
-  top: 100px;
+  top: 104px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(30, 30, 50, 0.92);
@@ -802,6 +804,8 @@ html, body {
   max-width: 90vw;
   animation: eventSlide 0.3s ease-out;
 }
+
+#event-banner.hidden { display: none; }
 @keyframes eventSlide {
   from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -986,6 +990,9 @@ html, body {
 }
 
 #mood-panel {
+  left: 16px;
+  top: 100px;
+  width: 280px;
   max-height: 70vh;
   overflow-y: auto;
 }
@@ -1062,6 +1069,13 @@ html, body {
   #festival-live {
     top: max(120px, calc(env(safe-area-inset-top) + 110px));
     gap: 6px;
+  }
+
+  #mood-panel {
+    left: 0; right: 0; top: auto;
+    bottom: 100px;
+    width: 100%;
+    border-radius: 12px 12px 0 0;
   }
 
   #festival-live .live-item {
