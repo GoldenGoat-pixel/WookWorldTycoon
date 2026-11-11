@@ -15,6 +15,7 @@ import { InfoPanel } from './ui/infoPanel.js';
 import { Tutorial } from './ui/tutorial.js';
 import { getUpgradeById } from './game/upgrades.js';
 import { StaffManager } from './game/staff.js';
+import { SecurityGuardManager } from './game/security.js';
 import { EventManager } from './game/events.js';
 import { getAdjacencyBonuses } from './game/adjacency.js';
 import { EffectsManager } from './game/effects.js';
@@ -87,6 +88,7 @@ infoPanel.onTierUpgrade = (entry) => {
 };
 
 const staff = new StaffManager(scene);
+const security = new SecurityGuardManager(scene, world);
 const events = new EventManager();
 const effects = new EffectsManager(scene);
 const festival = new FestivalManager(economy, world, dayNight, staff);
@@ -404,6 +406,7 @@ festival.onPhaseChange = (phase) => {
     }
     effects.setupBuildingEffects(world.placed);
     dayNight.setupBuildingGlow(world.placed);
+    security.spawnGuards(staff);
     sounds.stopForestAmbience();
     sounds.startFestivalAmbience();
     sounds.playPlace();
@@ -413,6 +416,7 @@ festival.onPhaseChange = (phase) => {
     const evtBanner = document.getElementById('event-banner');
     if (evtBanner) evtBanner.classList.add('hidden');
     crowd.clear();
+    security.clear();
     effects.dispose();
     dayNight.clearBuildingGlow();
     sounds.stopFestivalAmbience();
@@ -874,6 +878,7 @@ function animate(time) {
   // Events during hosting
   if (festival.phase === 'hosting') {
     events.update(dt);
+    security.update(dt, crowd, economy);
   }
 
   // Crowd simulation

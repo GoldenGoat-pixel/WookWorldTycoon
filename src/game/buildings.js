@@ -429,6 +429,50 @@ export const CATEGORIES = {
         }
       },
       {
+        id: 'security_post',
+        name: 'Security Post',
+        icon: '🛡️',
+        cost: 2500,
+        requiredRep: 15,
+        size: [2, 1],
+        description: 'Deploys patrol guards who handle drunks, catch dealers, and confiscate party favors.',
+        build(x, z) {
+          const group = new THREE.Group();
+          const booth = new THREE.Mesh(
+            new THREE.BoxGeometry(1.2, 1.8, 1),
+            new THREE.MeshLambertMaterial({ color: 0x1a1a4e })
+          );
+          booth.position.y = 0.9;
+          group.add(booth);
+          const roof = new THREE.Mesh(
+            new THREE.BoxGeometry(1.4, 0.1, 1.2),
+            new THREE.MeshLambertMaterial({ color: 0x111133 })
+          );
+          roof.position.y = 1.85;
+          group.add(roof);
+          const win = new THREE.Mesh(
+            new THREE.BoxGeometry(0.6, 0.4, 0.01),
+            new THREE.MeshBasicMaterial({ color: 0x88bbdd })
+          );
+          win.position.set(0, 1.3, 0.51);
+          group.add(win);
+          const lamp = new THREE.Mesh(
+            new THREE.SphereGeometry(0.08),
+            new THREE.MeshBasicMaterial({ color: 0xffaa00 })
+          );
+          lamp.position.y = 2.0;
+          group.add(lamp);
+          const stripe = new THREE.Mesh(
+            new THREE.BoxGeometry(1.22, 0.12, 0.01),
+            new THREE.MeshBasicMaterial({ color: 0xffcc00 })
+          );
+          stripe.position.set(0, 0.4, 0.51);
+          group.add(stripe);
+          group.position.set(x, 0, z);
+          return group;
+        }
+      },
+      {
         id: 'vip_lounge',
         name: 'VIP Lounge',
         icon: '🥂',

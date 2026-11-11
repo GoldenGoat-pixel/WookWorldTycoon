@@ -69,7 +69,8 @@ const BUBBLE_ICONS = {
   wasted:  '💀',
   energized: '⚡',
   mellow:  '😎',
-  trippy:  '🌈'
+  trippy:  '🌈',
+  dealer:  '💊'
 };
 
 const _bubbleTextures = {};
@@ -154,6 +155,9 @@ class Attendee {
     this.favorTimer = 0;
     this._wobblePhase = Math.random() * Math.PI * 2;
     this._glowLight = null;
+    this.hasContraband = false;
+    this.isDealer = false;
+    this._securityCooldown = 0;
   }
 
   get intoxLevel() {
@@ -448,6 +452,8 @@ export class AttendeeManager {
       this._showBubble(att, 'wasted', true);
     } else if (att.state === STATE.LEAVING && att.satisfaction < 20) {
       this._showBubble(att, 'angry', true);
+    } else if (att.isDealer) {
+      this._showBubble(att, 'dealer', true);
     } else if (att.partyFavor) {
       this._showBubble(att, att.partyFavor, false);
     } else if (att.intoxLevel === 'drunk' || att.intoxLevel === 'wasted') {
@@ -580,6 +586,7 @@ export class AttendeeManager {
     const isVIP = hasVIPLounge && Math.random() < 0.1;
     const mesh = isVIP ? this._createMesh(true) : this._getMesh();
     const att = new Attendee(mesh, ep.x, ep.z, isVIP);
+    att.hasContraband = Math.random() < 0.15;
 
     const wt = this._pickWanderTarget(att);
     if (!wt) return;
@@ -626,8 +633,11 @@ export class AttendeeManager {
             att._glowLight = null;
           }
           att.partyFavor = null;
+          att.isDealer = false;
         }
       }
+
+      if (att._securityCooldown > 0) att._securityCooldown -= dt;
 
       // Wasted attendees collapse
       if (att.intoxLevel === 'wasted' && att.state !== STATE.PASSED_OUT && att.state !== STATE.LEAVING && att.state !== STATE.USING) {
@@ -828,11 +838,13 @@ export class AttendeeManager {
           att.wanderTimer -= dt;
           att.needs.fun = Math.max(0, att.needs.fun - dt * 5);
 
-          // Chance to pick up a party favor while dancing
-          if (!att.partyFavor && Math.random() < 0.002) {
+          // Chance to pick up a party favor while dancing (or use smuggled contraband)
+          if (!att.partyFavor && (att.hasContraband || Math.random() < 0.002)) {
+            if (att.hasContraband) att.hasContraband = false;
             const favors = ['energized', 'mellow', 'trippy'];
             att.partyFavor = favors[Math.floor(Math.random() * favors.length)];
             att.favorTimer = 20 + Math.random() * 25;
+            if (Math.random() < 0.12) att.isDealer = true;
             if (att.partyFavor === 'trippy' && !att._glowLight) {
               att._glowLight = new THREE.PointLight(
                 [0xff00ff, 0x00ffff, 0xffff00, 0xff4400][Math.floor(Math.random() * 4)],

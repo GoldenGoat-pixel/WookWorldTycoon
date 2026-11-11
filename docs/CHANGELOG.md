@@ -47,3 +47,16 @@
 - Bubble icons show current state: beer mugs for drunk, dizzy face for wasted, pill for favors
 - Party favors wear off after a timer (15-30 seconds)
 - Building med tents becomes important for recovering wasted attendees
+
+### Security Guards
+- New Security Post building ($2,500) deploys two patrol guards who actively walk the festival grounds
+- Guards scan for trouble: dealers are top priority, followed by passed-out and wasted attendees, then party favor users and drunks
+- Dealers caught by guards are ejected from the festival and fined $25-50
+- Attendees caught with party favors have them confiscated, lose satisfaction, and pay a $10-25 fine
+- Wasted attendees are escorted to the nearest med tent to recover
+- Drunk attendees get a warning, have one drink removed, and lose some satisfaction
+- Entrance gates with security staff now spawn a gate guard who checks arriving attendees for contraband
+- 15% of attendees arrive carrying contraband; gate guards intercept and confiscate it with a $5-15 fine
+- 12% chance an attendee who acquires party favors becomes a dealer (shown with pill bubble icon)
+- Guard state shown with emoji bubbles: magnifying glass (patrolling), siren (chasing), stop sign (confronting)
+- Strategic placement matters: security posts cover patrol radius, entrance gates catch contraband at the door
