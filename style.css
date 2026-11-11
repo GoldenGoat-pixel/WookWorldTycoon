@@ -483,6 +483,20 @@ html, body {
 .staff-fire-btn:not(:disabled):active { background: rgba(231, 76, 60, 0.35); }
 .staff-hire-btn:disabled, .staff-fire-btn:disabled { opacity: 0.35; cursor: default; }
 
+.adjacency-section {
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: rgba(100, 140, 255, 0.08);
+  border: 1px solid rgba(100, 140, 255, 0.2);
+  border-radius: 8px;
+}
+.adj-row {
+  font-size: 12px;
+  padding: 2px 0;
+}
+.adj-bonus { color: #8cf; }
+.adj-penalty { color: #f88; }
+
 .upgrade-section { margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; }
 .upgrade-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 6px; }
 .upgrade-label.upgrade-complete { color: #2ecc71; }

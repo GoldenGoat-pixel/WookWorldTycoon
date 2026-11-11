@@ -1,4 +1,5 @@
 import { getUpgradesForStage, getUpgradeById } from '../game/upgrades.js';
+import { getAdjacencyBonuses } from '../game/adjacency.js';
 
 const STAGE_IDS = ['medium_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'];
 
@@ -25,6 +26,10 @@ export class InfoPanel {
     this.staff = staff || null;
   }
 
+  setWorld(world) {
+    this.world = world;
+  }
+
   show(entry) {
     this._currentEntry = entry;
     this._render(entry);
@@ -49,6 +54,10 @@ export class InfoPanel {
 
     if (this.crowd && this.festival && this.festival.phase === 'hosting') {
       html += this._buildLiveStats(entry);
+    }
+
+    if (this.world) {
+      html += this._buildAdjacencySection(entry);
     }
 
     if (this.staff) {
@@ -152,6 +161,22 @@ export class InfoPanel {
     }
     if (income > 0) {
       html += `<div class="info-live-row"><span class="info-live-icon">💰</span> $${income.toLocaleString()} earned</div>`;
+    }
+    html += '</div>';
+    return html;
+  }
+
+  _buildAdjacencySection(entry) {
+    const bonuses = getAdjacencyBonuses(entry, this.world.placed);
+    if (bonuses.length === 0) return '';
+    let html = '<div class="adjacency-section">';
+    for (const b of bonuses) {
+      const parts = [];
+      if (b.incomeMult) parts.push(`+${Math.round((b.incomeMult - 1) * 100)}% income`);
+      if (b.satisfactionBonus > 0) parts.push(`+${b.satisfactionBonus} satisfaction`);
+      if (b.satisfactionBonus < 0) parts.push(`${b.satisfactionBonus} satisfaction`);
+      const cls = b.penalty ? 'adj-penalty' : 'adj-bonus';
+      html += `<div class="adj-row ${cls}">${b.icon} ${b.label}: ${parts.join(', ')}</div>`;
     }
     html += '</div>';
     return html;

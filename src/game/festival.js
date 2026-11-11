@@ -1,4 +1,5 @@
 import { getUpgradeById } from './upgrades.js';
+import { getAdjacencyIncomeMult, getTotalAdjacencySatisfaction, getAdjacencyBonuses } from './adjacency.js';
 
 const STAGE_IDS = ['medium_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'];
 const CAMPING_IDS = ['tent_small', 'tent_large', 'rv_spot', 'glamping_tent', 'hammock_grove'];
@@ -99,7 +100,8 @@ export class FestivalManager {
       if (!base) continue;
       const staffMult = this.staff ? this.staff.getIncomeMultiplier(e) : 1;
       const evtMult = this.events ? this.events.getActiveIncomeMult(e.data.id) : 1;
-      const earned = Math.floor(base * scale * staffMult * evtMult);
+      const adjMult = getAdjacencyIncomeMult(e, this.world.placed);
+      const earned = Math.floor(base * scale * staffMult * evtMult * adjMult);
       income += earned;
       this.buildingIncome.set(e, (this.buildingIncome.get(e) || 0) + earned);
     }
@@ -179,6 +181,13 @@ export class FestivalManager {
       const sVal = Math.min(20, staffSat);
       sat += sVal;
       if (sVal > 0) factors.push({ label: 'Staff', value: +sVal.toFixed(1), icon: '👷' });
+    }
+
+    const adjSat = getTotalAdjacencySatisfaction(this.world.placed);
+    if (adjSat !== 0) {
+      const adjVal = Math.max(-10, Math.min(15, adjSat));
+      sat += adjVal;
+      factors.push({ label: `Adjacency ${adjSat > 0 ? 'Bonuses' : 'Penalties'}`, value: +adjVal.toFixed(1), icon: '🔗' });
     }
 
     if (this.ticketPrice > 100) {

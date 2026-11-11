@@ -16,6 +16,7 @@ import { Tutorial } from './ui/tutorial.js';
 import { getUpgradeById } from './game/upgrades.js';
 import { StaffManager } from './game/staff.js';
 import { EventManager } from './game/events.js';
+import { getAdjacencyBonuses } from './game/adjacency.js';
 
 // --- Renderer ---
 const canvas = document.getElementById('game-canvas');
@@ -72,6 +73,7 @@ const staff = new StaffManager(scene);
 const events = new EventManager();
 const festival = new FestivalManager(economy, world, dayNight, staff);
 infoPanel.setLiveSources(crowd, festival, staff);
+infoPanel.setWorld(world);
 crowd.setStaff(staff);
 crowd.setEvents(events);
 festival.events = events;
@@ -176,6 +178,11 @@ document.getElementById('slider-place').addEventListener('click', () => {
     economy.spend(selectedBuilding.cost);
     sounds.playPlace();
     sounds.updateMusicIntensity(economy.crowdSize);
+    const adj = getAdjacencyBonuses(entry, world.placed);
+    if (adj.length > 0) {
+      const names = adj.map(a => a.icon + ' ' + a.label).join(', ');
+      showToast(`🔗 ${names}`);
+    }
     sliderX.value = 0;
     sliderZ.value = 0;
     updateSliderGhost();
@@ -522,6 +529,11 @@ canvas.addEventListener('pointerup', e => {
       economy.spend(selectedBuilding.cost);
       sounds.playPlace();
       sounds.updateMusicIntensity(economy.crowdSize);
+      const adj = getAdjacencyBonuses(entry, world.placed);
+      if (adj.length > 0) {
+        const names = adj.map(a => a.icon + ' ' + a.label).join(', ');
+        showToast(`🔗 ${names}`);
+      }
     } else {
       sounds.playError();
       showToast("Can't place here!");
