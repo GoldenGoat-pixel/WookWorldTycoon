@@ -63,7 +63,13 @@ const BUBBLE_ICONS = {
   bladder: '🚽',
   happy:   '❤️',
   angry:   '😡',
-  queue:   '⏳'
+  queue:   '⏳',
+  tipsy:   '🍺',
+  drunk:   '🥴',
+  wasted:  '💀',
+  energized: '⚡',
+  mellow:  '😎',
+  trippy:  '🌈'
 };
 
 const _bubbleTextures = {};
@@ -104,7 +110,8 @@ const STATE = {
   DANCING: 4,
   LEAVING: 5,
   QUEUING: 6,
-  SITTING: 7
+  SITTING: 7,
+  PASSED_OUT: 8
 };
 
 function dist2D(a, b) {
@@ -141,6 +148,19 @@ class Attendee {
     this.bubble = null;
     this.bubbleKey = null;
     this.bubbleTimer = 0;
+
+    this.drinks = 0;
+    this.partyFavor = null;    // 'energized' | 'mellow' | 'trippy'
+    this.favorTimer = 0;
+    this._wobblePhase = Math.random() * Math.PI * 2;
+    this._glowLight = null;
+  }
+
+  get intoxLevel() {
+    if (this.drinks >= 5) return 'wasted';
+    if (this.drinks >= 3) return 'drunk';
+    if (this.drinks >= 2) return 'tipsy';
+    return null;
   }
 
   getMostUrgentNeed() {
@@ -269,6 +289,10 @@ export class AttendeeManager {
       att.mesh.remove(att.bubble);
       att.bubble.material.dispose();
       att.bubble = null;
+    }
+    if (att._glowLight) {
+      att.mesh.remove(att._glowLight);
+      att._glowLight = null;
     }
     this.scene.remove(att.mesh);
     this.pool.push(att.mesh);
@@ -420,8 +444,16 @@ export class AttendeeManager {
     const urgent = att.getMostUrgentNeed();
     const critical = att.getCriticalNeed();
 
-    if (att.state === STATE.LEAVING && att.satisfaction < 20) {
+    if (att.state === STATE.PASSED_OUT) {
+      this._showBubble(att, 'wasted', true);
+    } else if (att.state === STATE.LEAVING && att.satisfaction < 20) {
       this._showBubble(att, 'angry', true);
+    } else if (att.partyFavor) {
+      this._showBubble(att, att.partyFavor, false);
+    } else if (att.intoxLevel === 'drunk' || att.intoxLevel === 'wasted') {
+      this._showBubble(att, att.intoxLevel, true);
+    } else if (att.intoxLevel === 'tipsy') {
+      this._showBubble(att, 'tipsy', false);
     } else if (att.state === STATE.QUEUING) {
       this._showBubble(att, 'queue', !!critical);
     } else if (att.state === STATE.DANCING) {
@@ -460,7 +492,12 @@ export class AttendeeManager {
 
     const onPath = this._isOnPath(att.mesh.position.x, att.mesh.position.z);
     const evtSpeed = this.events ? this.events.getActiveSpeedMult() : 1;
-    const step = att.speed * (onPath ? 1.8 : 1) * evtSpeed * dt;
+    let speedMod = 1;
+    if (att.intoxLevel === 'drunk') speedMod = 0.6;
+    else if (att.intoxLevel === 'wasted') speedMod = 0.3;
+    if (att.partyFavor === 'energized') speedMod *= 1.5;
+    else if (att.partyFavor === 'mellow') speedMod *= 0.7;
+    const step = att.speed * (onPath ? 1.8 : 1) * evtSpeed * speedMod * dt;
 
     if (!onPath && d > 3) {
       for (let ox = -1; ox <= 1; ox++) {
@@ -512,6 +549,27 @@ export class AttendeeManager {
     att.mesh.position.z = nz;
     att.mesh.position.y = Math.abs(Math.sin(performance.now() * 0.008 + att.dancePhase)) * 0.04;
     if (mx !== 0 || mz !== 0) att.mesh.rotation.y = Math.atan2(mx, mz);
+
+    // Intoxication wobble
+    const intox = att.intoxLevel;
+    if (intox) {
+      att._wobblePhase += dt * (intox === 'wasted' ? 2 : intox === 'drunk' ? 4 : 6);
+      const wobAmp = intox === 'wasted' ? 0.25 : intox === 'drunk' ? 0.12 : 0.05;
+      att.mesh.rotation.z = Math.sin(att._wobblePhase) * wobAmp;
+      att.mesh.rotation.x = Math.cos(att._wobblePhase * 0.7) * wobAmp * 0.5;
+      if (intox === 'drunk' || intox === 'wasted') {
+        att.mesh.position.x += Math.sin(att._wobblePhase * 0.5) * wobAmp * 0.15;
+      }
+    } else {
+      att.mesh.rotation.z = 0;
+      att.mesh.rotation.x = 0;
+    }
+
+    // Trippy spin
+    if (att.partyFavor === 'trippy') {
+      att.mesh.rotation.y += dt * 2;
+    }
+
     return false;
   }
 
@@ -548,7 +606,40 @@ export class AttendeeManager {
 
       for (const need of Object.keys(att.needs)) {
         const evtMult = this.events ? this.events.getActiveNeedDecayMult(need) : 1;
-        att.needs[need] = Math.min(100, att.needs[need] + NEED_DECAY[need] * evtMult * dt);
+        let intoxMult = 1;
+        const intox = att.intoxLevel;
+        if (need === 'bladder' && (intox === 'drunk' || intox === 'wasted')) intoxMult = 2;
+        if (need === 'energy' && intox === 'wasted') intoxMult = 2.5;
+        if (need === 'fun' && (intox === 'tipsy' || intox === 'drunk')) intoxMult = 0.5;
+        if (att.partyFavor === 'energized' && need === 'energy') intoxMult *= 0.4;
+        if (att.partyFavor === 'mellow' && need === 'fun') intoxMult *= 0.3;
+        if (att.partyFavor === 'trippy' && need === 'fun') intoxMult *= 0;
+        att.needs[need] = Math.min(100, att.needs[need] + NEED_DECAY[need] * evtMult * intoxMult * dt);
+      }
+
+      // Party favor timer
+      if (att.partyFavor) {
+        att.favorTimer -= dt;
+        if (att.favorTimer <= 0) {
+          if (att._glowLight) {
+            this.scene.remove(att._glowLight);
+            att._glowLight = null;
+          }
+          att.partyFavor = null;
+        }
+      }
+
+      // Wasted attendees collapse
+      if (att.intoxLevel === 'wasted' && att.state !== STATE.PASSED_OUT && att.state !== STATE.LEAVING && att.state !== STATE.USING) {
+        if (att.state === STATE.QUEUING && att.targetEntry) {
+          const q = this._getQueue(att.targetEntry);
+          const idx = q.indexOf(att);
+          if (idx !== -1) q.splice(idx, 1);
+        }
+        att.state = STATE.PASSED_OUT;
+        att.wanderTimer = 8 + Math.random() * 6;
+        att.targetEntry = null;
+        att._seekingNeed = null;
       }
 
       att.lifetime -= dt;
@@ -620,7 +711,7 @@ export class AttendeeManager {
             const campfireNearby = this.world.placed.find(e => {
               return e.data.id === 'campfire' && dist2D(att.mesh.position, { x: e.gridX, z: e.gridZ }) < 4;
             });
-            if (campfireNearby && att.needs.energy > 40) {
+            if (campfireNearby && (att.needs.energy > 40 || att.partyFavor === 'mellow')) {
               att.state = STATE.SITTING;
               att.wanderTimer = 5 + Math.random() * 6;
               break;
@@ -698,9 +789,19 @@ export class AttendeeManager {
 
             const entry = att.targetEntry;
             if (entry) {
+              // Track drinks from bars
+              const bid = entry.data.id;
+              if (bid === 'bar' || bid === 'vip_lounge') {
+                att.drinks++;
+              }
+
               if (entry.data.income) {
                 const base = 2 + Math.floor(Math.random() * 5);
-                const spend = att.isVIP ? base * 3 : base;
+                let spendMult = att.isVIP ? 3 : 1;
+                if (att.intoxLevel === 'drunk') spendMult *= 1.5;
+                else if (att.intoxLevel === 'wasted') spendMult *= 2;
+                else if (att.intoxLevel === 'tipsy') spendMult *= 1.2;
+                const spend = Math.floor(base * spendMult);
                 this.economy.earn(spend);
                 att.spending += spend;
                 this.stats.totalSpending += spend;
@@ -719,13 +820,35 @@ export class AttendeeManager {
         }
 
         case STATE.DANCING: {
-          att.dancePhase += dt * 4;
-          att.mesh.position.y = Math.abs(Math.sin(att.dancePhase)) * 0.1;
+          const danceSpeed = att.partyFavor === 'energized' ? 7 : att.partyFavor === 'trippy' ? 9 : 4;
+          att.dancePhase += dt * danceSpeed;
+          const bounce = att.partyFavor === 'energized' ? 0.18 : 0.1;
+          att.mesh.position.y = Math.abs(Math.sin(att.dancePhase)) * bounce;
           att.mesh.rotation.y += Math.sin(att.dancePhase * 0.5) * 0.03;
           att.wanderTimer -= dt;
           att.needs.fun = Math.max(0, att.needs.fun - dt * 5);
 
-          if (att.wanderTimer <= 0 || att.getCriticalNeed()) {
+          // Chance to pick up a party favor while dancing
+          if (!att.partyFavor && Math.random() < 0.002) {
+            const favors = ['energized', 'mellow', 'trippy'];
+            att.partyFavor = favors[Math.floor(Math.random() * favors.length)];
+            att.favorTimer = 20 + Math.random() * 25;
+            if (att.partyFavor === 'trippy' && !att._glowLight) {
+              att._glowLight = new THREE.PointLight(
+                [0xff00ff, 0x00ffff, 0xffff00, 0xff4400][Math.floor(Math.random() * 4)],
+                0.5, 5
+              );
+              att._glowLight.position.set(0, 0.5, 0);
+              att.mesh.add(att._glowLight);
+            }
+          }
+
+          // Trippy: extend dancing, don't stop for non-critical needs
+          const stopDancing = att.partyFavor === 'trippy'
+            ? att.wanderTimer <= 0
+            : (att.wanderTimer <= 0 || att.getCriticalNeed());
+
+          if (stopDancing) {
             att.state = STATE.WANDERING;
             att.target = this._pickWanderTarget(att);
           }
@@ -737,12 +860,45 @@ export class AttendeeManager {
           att.wanderTimer -= dt;
           att.needs.energy = Math.max(0, att.needs.energy - dt * 6);
           att.needs.fun = Math.max(0, att.needs.fun - dt * 2);
-          att.satisfaction = Math.min(100, att.satisfaction + dt * 1.5);
+          const mellowBonus = att.partyFavor === 'mellow' ? 3 : 0;
+          att.satisfaction = Math.min(100, att.satisfaction + dt * (1.5 + mellowBonus));
 
           if (att.wanderTimer <= 0 || att.getCriticalNeed()) {
             att.mesh.position.y = 0;
             att.state = STATE.WANDERING;
             att.target = this._pickWanderTarget(att);
+          }
+          break;
+        }
+
+        case STATE.PASSED_OUT: {
+          att.mesh.position.y = -0.15;
+          att.mesh.rotation.x = Math.PI / 2 * 0.7;
+          att.wanderTimer -= dt;
+          att.satisfaction = Math.max(0, att.satisfaction - dt * 3);
+          att.needs.energy = Math.min(100, att.needs.energy + dt * 3);
+
+          if (att.wanderTimer <= 0) {
+            att.mesh.rotation.x = 0;
+            att.mesh.rotation.z = 0;
+            att.mesh.position.y = 0;
+            att.drinks = Math.max(0, att.drinks - 2);
+            // Seek med tent if one exists
+            const medTent = this._findNearestBuilding(att, 'bladder');
+            const actualMed = this.world.placed.find(e => e.data.id === 'med_tent');
+            if (actualMed) {
+              att.state = STATE.SEEKING;
+              att.targetEntry = actualMed;
+              att._seekingNeed = 'energy';
+              att.target = new THREE.Vector3(
+                actualMed.gridX + (Math.random() - 0.5),
+                0,
+                actualMed.gridZ + actualMed.sizeZ / 2 + 0.8
+              );
+            } else {
+              att.state = STATE.WANDERING;
+              att.target = this._pickWanderTarget(att);
+            }
           }
           break;
         }
@@ -771,6 +927,9 @@ export class AttendeeManager {
       if (att.bubble) {
         att.mesh.remove(att.bubble);
         att.bubble.material.dispose();
+      }
+      if (att._glowLight) {
+        att.mesh.remove(att._glowLight);
       }
       this.scene.remove(att.mesh);
       this.pool.push(att.mesh);

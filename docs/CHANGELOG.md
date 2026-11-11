@@ -30,3 +30,20 @@
 - VIP attendees spend 3x more at vendor buildings
 - Attendees sit near campfires when tired (new SITTING state), recovering energy and fun
 - Sitting attendees visually lower to the ground
+
+### Intoxication & Party Favors
+- Attendees now track drinks consumed at bars and VIP lounges
+- Three intoxication levels: tipsy (2+ drinks), drunk (3+), wasted (5+)
+- Drunk attendees wobble as they walk, move slower, and drift sideways
+- Wasted attendees can collapse into a new PASSED_OUT state, lying on the ground
+- Passed-out attendees lose satisfaction rapidly and seek the med tent to recover
+- Intoxication increases spending (tipsy 1.2x, drunk 1.5x, wasted 2x), stacking with VIP multiplier
+- Drunk/wasted attendees have faster bladder decay and energy drain
+- Tipsy/drunk attendees gain fun more slowly (they're already having a good time)
+- Three party favors acquired randomly while dancing: energized, mellow, trippy
+- Energized: faster movement, faster dancing, slower energy drain
+- Mellow: prefer sitting at campfires, bonus satisfaction while sitting, calmer movement
+- Trippy: colorful glow light, spinning dance, visual trail effect, ignore needs while dancing
+- Bubble icons show current state: beer mugs for drunk, dizzy face for wasted, pill for favors
+- Party favors wear off after a timer (15-30 seconds)
+- Building med tents becomes important for recovering wasted attendees
