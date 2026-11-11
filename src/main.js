@@ -17,6 +17,7 @@ import { getUpgradeById } from './game/upgrades.js';
 import { StaffManager } from './game/staff.js';
 import { EventManager } from './game/events.js';
 import { getAdjacencyBonuses } from './game/adjacency.js';
+import { EffectsManager } from './game/effects.js';
 
 // --- Renderer ---
 const canvas = document.getElementById('game-canvas');
@@ -71,6 +72,7 @@ infoPanel.onUpgrade = (entry, upgradeId) => {
 };
 const staff = new StaffManager(scene);
 const events = new EventManager();
+const effects = new EffectsManager(scene);
 const festival = new FestivalManager(economy, world, dayNight, staff);
 infoPanel.setLiveSources(crowd, festival, staff);
 infoPanel.setWorld(world);
@@ -81,6 +83,7 @@ festival.events = events;
 events.onEvent = (evt) => {
   showToast(`${evt.icon} ${evt.message}`);
   updateEventBanner();
+  effects.setEventVisual(evt.id);
   if (evt.effects.satisfactionFlat) {
     for (const att of crowd.attendees) {
       att.satisfaction = Math.max(0, Math.min(100, att.satisfaction + evt.effects.satisfactionFlat));
@@ -89,6 +92,7 @@ events.onEvent = (evt) => {
 };
 events.onEventEnd = () => {
   updateEventBanner();
+  effects.clearEventVisual();
 };
 
 const gameState = {
@@ -379,6 +383,7 @@ festival.onPhaseChange = (phase) => {
       currentTool = 'select';
       toolbar.setTool('select');
     }
+    effects.setupBuildingEffects(world.placed);
     sounds.stopForestAmbience();
     sounds.startFestivalAmbience();
     sounds.playPlace();
@@ -388,6 +393,7 @@ festival.onPhaseChange = (phase) => {
     const evtBanner = document.getElementById('event-banner');
     if (evtBanner) evtBanner.classList.add('hidden');
     crowd.clear();
+    effects.dispose();
     sounds.stopFestivalAmbience();
     sounds.playVictoryFanfare();
     showResults(festival.results);
@@ -847,6 +853,10 @@ function animate(time) {
     festival.liveSatisfaction = crowd.getLiveSatisfaction();
   }
   crowd.update(dt, targetNPCs);
+
+  if (festival.phase === 'hosting') {
+    effects.update(dt);
+  }
 
   // Crowd cheers during hosting
   if (festival.phase === 'hosting' && time - lastCheerTime > nextCheerDelay) {

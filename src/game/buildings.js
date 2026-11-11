@@ -616,28 +616,31 @@ export const CATEGORIES = {
             leg.rotation.z = sx > 0 ? -0.15 : 0.15;
             group.add(leg);
           }
+          const wheel = new THREE.Group();
+          wheel.userData.ferrisWheel = true;
+          wheel.position.y = 4.5;
           const rim = new THREE.Mesh(
             new THREE.TorusGeometry(2, 0.06, 8, 24),
             new THREE.MeshLambertMaterial({ color: 0xcc4444 })
           );
-          rim.position.y = 4.5;
-          group.add(rim);
+          wheel.add(rim);
           for (let i = 0; i < 8; i++) {
             const angle = (i / 8) * Math.PI * 2;
             const spoke = new THREE.Mesh(
               new THREE.CylinderGeometry(0.02, 0.02, 2),
               new THREE.MeshLambertMaterial({ color: 0xdddddd })
             );
-            spoke.position.set(Math.cos(angle), 4.5 + Math.sin(angle), 0);
+            spoke.position.set(Math.cos(angle), Math.sin(angle), 0);
             spoke.rotation.z = angle;
-            group.add(spoke);
+            wheel.add(spoke);
             const car = new THREE.Mesh(
               new THREE.BoxGeometry(0.3, 0.3, 0.2),
               new THREE.MeshLambertMaterial({ color: [0x4488ff, 0xff8844, 0x44ff88, 0xff44ff, 0xffff44, 0x44ffff, 0xff4444, 0x88ff44][i] })
             );
-            car.position.set(Math.cos(angle) * 2, 4.5 + Math.sin(angle) * 2, 0);
-            group.add(car);
+            car.position.set(Math.cos(angle) * 2, Math.sin(angle) * 2, 0);
+            wheel.add(car);
           }
+          group.add(wheel);
           group.position.set(x, 0, z);
           return group;
         }
