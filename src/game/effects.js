@@ -11,6 +11,7 @@ export class EffectsManager {
     this.spotlights = [];
     this.ferrisWheels = [];
     this._eventId = null;
+    this.dayNight = null;
   }
 
   setEventVisual(eventId) {
@@ -212,11 +213,13 @@ export class EffectsManager {
   }
 
   _updateSpotlights(dt) {
+    const nightBoost = this.dayNight ? Math.max(0, 1 - this.dayNight.timeOfDay * 2.5 + 0.5) : 0;
     for (const s of this.spotlights) {
       s.time += dt;
       const idx = Math.floor(s.time * 0.5) % s.colors.length;
       s.light.color.setHex(s.colors[(idx + s.colorIdx) % s.colors.length]);
-      s.light.intensity = 0.4 + Math.sin(s.time * 3) * 0.2;
+      const base = 0.4 + Math.sin(s.time * 3) * 0.2;
+      s.light.intensity = base + nightBoost * 0.6;
     }
   }
 

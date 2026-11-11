@@ -12,8 +12,9 @@ export class DayNightCycle {
     // Store original colors
     this._origFog = 0x87ceeb;
 
-    // Stage lights that turn on at night
-    this.stageLights = [];
+    // Building glow lights at night
+    this._glowLights = [];
+    this._glowActive = false;
 
     // Stars
     this._createStars();
@@ -132,6 +133,12 @@ export class DayNightCycle {
     const nightFactor = Math.max(0, 1 - daylight * 2);
     this.stars.material.opacity = nightFactor * 0.8;
 
+    // Building glow at dusk/night
+    const glowIntensity = Math.max(0, 1 - daylight * 1.3);
+    for (const gl of this._glowLights) {
+      gl.intensity = glowIntensity * gl._baseIntensity;
+    }
+
     // Time display
     this._timeEl.textContent = `${this._getPeriodEmoji()} ${this._getTimeString()}`;
   }
@@ -144,5 +151,37 @@ export class DayNightCycle {
   get isDusk() {
     const h = (this.timeOfDay * 24) % 24;
     return (h >= 17 && h <= 20) || (h >= 5 && h <= 7);
+  }
+
+  setupBuildingGlow(placed) {
+    this.clearBuildingGlow();
+    const GLOW_BUILDINGS = {
+      food_tent:     { color: 0xffaa44, intensity: 0.6, height: 2 },
+      bar:           { color: 0x44ffaa, intensity: 0.7, height: 2.5 },
+      vip_lounge:    { color: 0xff44ff, intensity: 0.8, height: 2 },
+      glamping_tent: { color: 0xffdd66, intensity: 0.4, height: 1.5 },
+      string_lights: { color: 0xffdd66, intensity: 0.5, height: 2.5 },
+      tree_lights:   { color: 0xffdd66, intensity: 0.4, height: 2 },
+      campfire:      { color: 0xff6600, intensity: 0.6, height: 1.5 },
+      dj_booth:      { color: 0xff00ff, intensity: 0.7, height: 2 },
+    };
+    for (const entry of placed) {
+      const cfg = GLOW_BUILDINGS[entry.data.id];
+      if (!cfg) continue;
+      const light = new THREE.PointLight(cfg.color, 0, 12);
+      light._baseIntensity = cfg.intensity;
+      light.position.set(entry.gridX, cfg.height, entry.gridZ);
+      this.scene.add(light);
+      this._glowLights.push(light);
+    }
+    this._glowActive = true;
+  }
+
+  clearBuildingGlow() {
+    for (const light of this._glowLights) {
+      this.scene.remove(light);
+    }
+    this._glowLights = [];
+    this._glowActive = false;
   }
 }

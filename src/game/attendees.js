@@ -103,7 +103,8 @@ const STATE = {
   USING: 3,
   DANCING: 4,
   LEAVING: 5,
-  QUEUING: 6
+  QUEUING: 6,
+  SITTING: 7
 };
 
 function dist2D(a, b) {
@@ -113,10 +114,11 @@ function dist2D(a, b) {
 }
 
 class Attendee {
-  constructor(mesh, x, z) {
+  constructor(mesh, x, z, isVIP = false) {
     this.mesh = mesh;
     this.mesh.position.set(x, 0, z);
     this.speed = 2.5 + Math.random() * 1.5;
+    this.isVIP = isVIP;
 
     this.needs = {
       hunger:  Math.random() * 30,
@@ -126,7 +128,7 @@ class Attendee {
       bladder: Math.random() * 25
     };
 
-    this.satisfaction = 80;
+    this.satisfaction = isVIP ? 90 : 80;
     this.state = STATE.ENTERING;
     this.target = null;
     this.targetEntry = null;
@@ -135,7 +137,7 @@ class Attendee {
     this.wanderTimer = 0;
     this.dancePhase = Math.random() * Math.PI * 2;
     this.spending = 0;
-    this.lifetime = 60 + Math.random() * 120;
+    this.lifetime = (isVIP ? 90 : 60) + Math.random() * 120;
     this.bubble = null;
     this.bubbleKey = null;
     this.bubbleTimer = 0;
@@ -186,10 +188,13 @@ export class AttendeeManager {
     this.events = eventManager;
   }
 
-  _createMesh() {
+  _createMesh(isVIP = false) {
     const group = new THREE.Group();
     const skin = SKIN_TONES[Math.floor(Math.random() * SKIN_TONES.length)];
-    const shirt = SHIRT_COLORS[Math.floor(Math.random() * SHIRT_COLORS.length)];
+    const shirt = isVIP
+      ? [0xddaa00, 0xcc8800, 0xeecc44][Math.floor(Math.random() * 3)]
+      : SHIRT_COLORS[Math.floor(Math.random() * SHIRT_COLORS.length)];
+    const pants = isVIP ? 0x1a1a2e : [0x334466, 0x443344, 0x333333, 0x224422][Math.floor(Math.random() * 4)];
 
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(0.22, 0.35, 0.15),
@@ -208,19 +213,35 @@ export class AttendeeManager {
     for (const s of [-0.06, 0.06]) {
       const leg = new THREE.Mesh(
         new THREE.BoxGeometry(0.08, 0.25, 0.08),
-        new THREE.MeshLambertMaterial({ color: 0x334466 })
+        new THREE.MeshLambertMaterial({ color: pants })
       );
       leg.position.set(s, 0.15, 0);
       group.add(leg);
     }
 
-    if (Math.random() < 0.3) {
+    if (isVIP) {
+      const shades = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.04, 0.02),
+        new THREE.MeshLambertMaterial({ color: 0x111111 })
+      );
+      shades.position.set(0, 0.73, 0.09);
+      group.add(shades);
+    } else if (Math.random() < 0.3) {
       const hat = new THREE.Mesh(
         new THREE.CylinderGeometry(0.12, 0.12, 0.06, 8),
         new THREE.MeshLambertMaterial({ color: HAT_COLORS[Math.floor(Math.random() * HAT_COLORS.length)] })
       );
       hat.position.y = 0.83;
       group.add(hat);
+    }
+
+    if (Math.random() < 0.15) {
+      const pack = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.18, 0.1),
+        new THREE.MeshLambertMaterial({ color: [0x556644, 0x664433, 0x445566][Math.floor(Math.random() * 3)] })
+      );
+      pack.position.set(0, 0.45, -0.12);
+      group.add(pack);
     }
 
     if (Math.random() < 0.2) {
@@ -232,6 +253,9 @@ export class AttendeeManager {
       glow.rotation.z = Math.PI / 6;
       group.add(glow);
     }
+
+    const scale = isVIP ? 1.1 : 0.85 + Math.random() * 0.3;
+    group.scale.setScalar(scale);
 
     return group;
   }
@@ -494,8 +518,10 @@ export class AttendeeManager {
   spawn() {
     if (this.attendees.length >= this.maxAttendees) return;
     const ep = this._getEntryPoint();
-    const mesh = this._getMesh();
-    const att = new Attendee(mesh, ep.x, ep.z);
+    const hasVIPLounge = this.world.placed.some(e => e.data.id === 'vip_lounge');
+    const isVIP = hasVIPLounge && Math.random() < 0.1;
+    const mesh = isVIP ? this._createMesh(true) : this._getMesh();
+    const att = new Attendee(mesh, ep.x, ep.z, isVIP);
 
     const wt = this._pickWanderTarget(att);
     if (!wt) return;
@@ -591,6 +617,15 @@ export class AttendeeManager {
               break;
             }
 
+            const campfireNearby = this.world.placed.find(e => {
+              return e.data.id === 'campfire' && dist2D(att.mesh.position, { x: e.gridX, z: e.gridZ }) < 4;
+            });
+            if (campfireNearby && att.needs.energy > 40) {
+              att.state = STATE.SITTING;
+              att.wanderTimer = 5 + Math.random() * 6;
+              break;
+            }
+
             att.state = STATE.WANDERING;
             att.wanderTimer = 2 + Math.random() * 4;
             att.target = this._pickWanderTarget(att);
@@ -664,7 +699,8 @@ export class AttendeeManager {
             const entry = att.targetEntry;
             if (entry) {
               if (entry.data.income) {
-                const spend = 2 + Math.floor(Math.random() * 5);
+                const base = 2 + Math.floor(Math.random() * 5);
+                const spend = att.isVIP ? base * 3 : base;
                 this.economy.earn(spend);
                 att.spending += spend;
                 this.stats.totalSpending += spend;
@@ -690,6 +726,21 @@ export class AttendeeManager {
           att.needs.fun = Math.max(0, att.needs.fun - dt * 5);
 
           if (att.wanderTimer <= 0 || att.getCriticalNeed()) {
+            att.state = STATE.WANDERING;
+            att.target = this._pickWanderTarget(att);
+          }
+          break;
+        }
+
+        case STATE.SITTING: {
+          att.mesh.position.y = -0.1;
+          att.wanderTimer -= dt;
+          att.needs.energy = Math.max(0, att.needs.energy - dt * 6);
+          att.needs.fun = Math.max(0, att.needs.fun - dt * 2);
+          att.satisfaction = Math.min(100, att.satisfaction + dt * 1.5);
+
+          if (att.wanderTimer <= 0 || att.getCriticalNeed()) {
+            att.mesh.position.y = 0;
             att.state = STATE.WANDERING;
             att.target = this._pickWanderTarget(att);
           }

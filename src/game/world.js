@@ -225,7 +225,7 @@ export class World {
       }
     }
 
-    const entry = { id: building.id, mesh, gridX: gx, gridZ: gz, sizeX, sizeZ, rotation, data: building, upgrades: [] };
+    const entry = { id: building.id, mesh, gridX: gx, gridZ: gz, sizeX, sizeZ, rotation, data: building, upgrades: [], tier: 1, tierMeshes: [] };
     this.placed.push(entry);
     return entry;
   }
@@ -240,12 +240,25 @@ export class World {
     return true;
   }
 
+  applyTier(entry, tierDef) {
+    const mesh = tierDef.build(entry);
+    mesh.position.set(entry.gridX, 0, entry.gridZ);
+    mesh.rotation.y = entry.rotation;
+    this.scene.add(mesh);
+    entry.tierMeshes.push({ tier: tierDef.tier, mesh });
+    entry.tier = tierDef.tier;
+    return true;
+  }
+
   remove(entry) {
     const idx = this.placed.indexOf(entry);
     if (idx === -1) return;
     this.scene.remove(entry.mesh);
     for (const u of entry.upgrades) {
       this.scene.remove(u.mesh);
+    }
+    for (const t of entry.tierMeshes) {
+      this.scene.remove(t.mesh);
     }
     for (let dx = 0; dx < entry.sizeX; dx++) {
       for (let dz = 0; dz < entry.sizeZ; dz++) {
@@ -303,7 +316,8 @@ export class World {
       x: e.gridX,
       z: e.gridZ,
       rotation: e.rotation,
-      upgrades: e.upgrades.map(u => u.id)
+      upgrades: e.upgrades.map(u => u.id),
+      tier: e.tier || 1
     }));
   }
 }

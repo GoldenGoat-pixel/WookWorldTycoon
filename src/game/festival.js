@@ -1,5 +1,6 @@
 import { getUpgradeById } from './upgrades.js';
 import { getAdjacencyIncomeMult, getTotalAdjacencySatisfaction, getAdjacencyBonuses } from './adjacency.js';
+import { getTotalTierIncomeBoost, getTotalTierSatisfaction, getSeasonCostScale } from './tiers.js';
 
 const STAGE_IDS = ['medium_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'];
 const CAMPING_IDS = ['tent_small', 'tent_large', 'rv_spot', 'glamping_tent', 'hammock_grove'];
@@ -98,10 +99,11 @@ export class FestivalManager {
     for (const e of this.world.placed) {
       const base = VENDOR_INCOME[e.data.id];
       if (!base) continue;
+      const tierBoost = getTotalTierIncomeBoost(e);
       const staffMult = this.staff ? this.staff.getIncomeMultiplier(e) : 1;
       const evtMult = this.events ? this.events.getActiveIncomeMult(e.data.id) : 1;
       const adjMult = getAdjacencyIncomeMult(e, this.world.placed);
-      const earned = Math.floor(base * scale * staffMult * evtMult * adjMult);
+      const earned = Math.floor((base + tierBoost * 0.1) * scale * staffMult * evtMult * adjMult);
       income += earned;
       this.buildingIncome.set(e, (this.buildingIncome.get(e) || 0) + earned);
     }
@@ -188,6 +190,13 @@ export class FestivalManager {
       const adjVal = Math.max(-10, Math.min(15, adjSat));
       sat += adjVal;
       factors.push({ label: `Adjacency ${adjSat > 0 ? 'Bonuses' : 'Penalties'}`, value: +adjVal.toFixed(1), icon: '🔗' });
+    }
+
+    const tierSat = getTotalTierSatisfaction(this.world.placed);
+    if (tierSat > 0) {
+      const tVal = Math.min(20, tierSat);
+      sat += tVal;
+      factors.push({ label: 'Building Tiers', value: +tVal.toFixed(1), icon: '⬆️' });
     }
 
     if (this.ticketPrice > 100) {

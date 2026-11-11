@@ -1,5 +1,6 @@
 import { getUpgradesForStage, getUpgradeById } from '../game/upgrades.js';
 import { getAdjacencyBonuses } from '../game/adjacency.js';
+import { getNextTier, getTotalTierIncomeBoost, getSeasonCostScale } from '../game/tiers.js';
 
 const STAGE_IDS = ['medium_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'];
 
@@ -10,6 +11,7 @@ export class InfoPanel {
     this.bodyEl = document.getElementById('info-body');
     this.closeBtn = document.getElementById('close-info');
     this.onUpgrade = null;
+    this.onTierUpgrade = null;
     this.onStaffChange = null;
     this.crowd = null;
     this.festival = null;
@@ -39,7 +41,8 @@ export class InfoPanel {
 
   _render(entry) {
     const b = entry.data;
-    this.nameEl.textContent = `${b.icon} ${b.name}`;
+    const tierLabel = (entry.tier || 1) > 1 ? ` ★${entry.tier}` : '';
+    this.nameEl.textContent = `${b.icon} ${b.name}${tierLabel}`;
     let html = `<p class="info-desc">${b.description}</p>`;
 
     if (b.capacity) {
@@ -63,6 +66,8 @@ export class InfoPanel {
     if (this.staff) {
       html += this._buildStaffSection(entry);
     }
+
+    html += this._buildTierSection(entry);
 
     if (STAGE_IDS.includes(b.id)) {
       const available = getUpgradesForStage(b.id);
@@ -102,6 +107,13 @@ export class InfoPanel {
         if (this.onUpgrade) this.onUpgrade(entry, upgradeId);
       });
     });
+
+    const tierBtn = this.bodyEl.querySelector('.tier-upgrade-btn');
+    if (tierBtn) {
+      tierBtn.addEventListener('click', () => {
+        if (this.onTierUpgrade) this.onTierUpgrade(entry);
+      });
+    }
 
     const hireBtn = this.bodyEl.querySelector('.staff-hire-btn');
     const fireBtn = this.bodyEl.querySelector('.staff-fire-btn');
@@ -161,6 +173,26 @@ export class InfoPanel {
     }
     if (income > 0) {
       html += `<div class="info-live-row"><span class="info-live-icon">💰</span> $${income.toLocaleString()} earned</div>`;
+    }
+    html += '</div>';
+    return html;
+  }
+
+  _buildTierSection(entry) {
+    const next = getNextTier(entry.data.id, entry.tier || 1);
+    if (!next) return '';
+    const isPlanning = this.festival && this.festival.phase === 'planning';
+    let html = '<div class="tier-section">';
+    html += `<div class="tier-label">Upgrade to ${next.icon} ${next.name}</div>`;
+    html += `<div class="tier-desc">${next.description}</div>`;
+    const parts = [];
+    if (next.incomeBoost > 0) parts.push(`+$${next.incomeBoost} income/tick`);
+    if (next.satisfactionBoost > 0) parts.push(`+${next.satisfactionBoost} satisfaction`);
+    if (parts.length) html += `<div class="tier-stats">${parts.join(' · ')}</div>`;
+    if (isPlanning) {
+      const season = this.festival ? this.festival.season : 1;
+      const tierCost = Math.floor(next.cost * getSeasonCostScale(season));
+      html += `<button class="tier-upgrade-btn">⬆️ Upgrade — $${tierCost.toLocaleString()}</button>`;
     }
     html += '</div>';
     return html;

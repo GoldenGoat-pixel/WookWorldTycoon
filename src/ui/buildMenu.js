@@ -1,9 +1,11 @@
 import { CATEGORIES } from '../game/buildings.js';
+import { getSeasonCostScale } from '../game/tiers.js';
 
 export class BuildMenu {
   constructor(onSelect, economy) {
     this.onSelect = onSelect;
     this.economy = economy;
+    this.festival = null;
     this.selectedItem = null;
     this.activeCategory = 'stages';
 
@@ -44,10 +46,13 @@ export class BuildMenu {
         `;
         el.addEventListener('click', () => {});
       } else {
+        const season = this.festival ? this.festival.season : 1;
+        const scaled = Math.floor(item.cost * getSeasonCostScale(season));
+        const costLabel = scaled > item.cost ? `$${scaled.toLocaleString()}` : `$${item.cost.toLocaleString()}`;
         el.innerHTML = `
           <div class="item-icon">${item.icon}</div>
           <div class="item-name">${item.name}</div>
-          <div class="item-cost">$${item.cost.toLocaleString()}</div>
+          <div class="item-cost">${costLabel}</div>
         `;
         el.addEventListener('click', () => {
           this.selectedItem = item;

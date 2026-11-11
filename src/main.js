@@ -18,6 +18,7 @@ import { StaffManager } from './game/staff.js';
 import { EventManager } from './game/events.js';
 import { getAdjacencyBonuses } from './game/adjacency.js';
 import { EffectsManager } from './game/effects.js';
+import { getNextTier, getTierById, getSeasonCostScale } from './game/tiers.js';
 
 // --- Renderer ---
 const canvas = document.getElementById('game-canvas');
@@ -70,6 +71,21 @@ infoPanel.onUpgrade = (entry, upgradeId) => {
     infoPanel.show(entry);
   }
 };
+infoPanel.onTierUpgrade = (entry) => {
+  const next = getNextTier(entry.data.id, entry.tier || 1);
+  if (!next) return;
+  const cost = Math.floor(next.cost * getSeasonCostScale(festival.season));
+  if (economy.money < cost) {
+    showToast('Not enough money!');
+    return;
+  }
+  economy.spend(cost);
+  world.applyTier(entry, next);
+  sounds.playPlace();
+  showToast(`${next.icon} Upgraded to ${next.name}!`);
+  infoPanel.show(entry);
+};
+
 const staff = new StaffManager(scene);
 const events = new EventManager();
 const effects = new EffectsManager(scene);
@@ -79,6 +95,7 @@ infoPanel.setWorld(world);
 crowd.setStaff(staff);
 crowd.setEvents(events);
 festival.events = events;
+effects.dayNight = dayNight;
 
 events.onEvent = (evt) => {
   showToast(`${evt.icon} ${evt.message}`);
@@ -171,7 +188,8 @@ sliderZ.addEventListener('input', updateSliderGhost);
 
 document.getElementById('slider-place').addEventListener('click', () => {
   if (!selectedBuilding || festival.phase !== 'planning') return;
-  if (!economy.canAfford(selectedBuilding.cost)) {
+  const scaledCost = Math.floor(selectedBuilding.cost * getSeasonCostScale(festival.season));
+  if (!economy.canAfford(scaledCost)) {
     sounds.playError();
     showToast('Not enough money!');
     return;
@@ -179,7 +197,7 @@ document.getElementById('slider-place').addEventListener('click', () => {
   const [gx, gz] = getSliderGridPos();
   const entry = world.place(gx, gz, selectedBuilding, placementRotation);
   if (entry) {
-    economy.spend(selectedBuilding.cost);
+    economy.spend(scaledCost);
     sounds.playPlace();
     sounds.updateMusicIntensity(economy.crowdSize);
     const adj = getAdjacencyBonuses(entry, world.placed);
@@ -209,6 +227,7 @@ const buildMenu = new BuildMenu(item => {
   sounds.playSelect();
   showBuildSliders();
 }, economy);
+buildMenu.festival = festival;
 
 const toolbar = new Toolbar(tool => {
   if (festival.phase === 'hosting' && (tool === 'build' || tool === 'bulldoze')) return;
@@ -384,6 +403,7 @@ festival.onPhaseChange = (phase) => {
       toolbar.setTool('select');
     }
     effects.setupBuildingEffects(world.placed);
+    dayNight.setupBuildingGlow(world.placed);
     sounds.stopForestAmbience();
     sounds.startFestivalAmbience();
     sounds.playPlace();
@@ -394,6 +414,7 @@ festival.onPhaseChange = (phase) => {
     if (evtBanner) evtBanner.classList.add('hidden');
     crowd.clear();
     effects.dispose();
+    dayNight.clearBuildingGlow();
     sounds.stopFestivalAmbience();
     sounds.playVictoryFanfare();
     showResults(festival.results);
@@ -525,14 +546,15 @@ canvas.addEventListener('pointerup', e => {
   const [gx, gz] = world.snapToGrid(pt.x, pt.z);
 
   if (currentTool === 'build' && selectedBuilding && festival.phase === 'planning') {
-    if (!economy.canAfford(selectedBuilding.cost)) {
+    const scaledCost = Math.floor(selectedBuilding.cost * getSeasonCostScale(festival.season));
+    if (!economy.canAfford(scaledCost)) {
       sounds.playError();
       showToast('Not enough money!');
       return;
     }
     const entry = world.place(gx, gz, selectedBuilding, placementRotation);
     if (entry) {
-      economy.spend(selectedBuilding.cost);
+      economy.spend(scaledCost);
       sounds.playPlace();
       sounds.updateMusicIntensity(economy.crowdSize);
       const adj = getAdjacencyBonuses(entry, world.placed);
@@ -634,10 +656,18 @@ function loadSlotData(slot) {
         const building = getBuildingById(b.id);
         if (building) {
           const entry = world.place(b.x, b.z, building, b.rotation || 0);
-          if (entry && b.upgrades) {
-            for (const uid of b.upgrades) {
-              const upg = getUpgradeById(uid);
-              if (upg) world.addUpgrade(entry, upg);
+          if (entry) {
+            if (b.upgrades) {
+              for (const uid of b.upgrades) {
+                const upg = getUpgradeById(uid);
+                if (upg) world.addUpgrade(entry, upg);
+              }
+            }
+            if (b.tier && b.tier > 1) {
+              for (let t = 2; t <= b.tier; t++) {
+                const tierDef = getTierById(b.id, t);
+                if (tierDef) world.applyTier(entry, tierDef);
+              }
             }
           }
         }
