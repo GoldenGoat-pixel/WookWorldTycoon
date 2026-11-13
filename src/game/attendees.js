@@ -158,6 +158,7 @@ class Attendee {
     this.hasContraband = false;
     this.isDealer = false;
     this._securityCooldown = 0;
+    this._medicCooldown = 0;
   }
 
   get intoxLevel() {
@@ -210,6 +211,10 @@ export class AttendeeManager {
 
   setEvents(eventManager) {
     this.events = eventManager;
+  }
+
+  setServices(serviceManager) {
+    this.services = serviceManager;
   }
 
   _createMesh(isVIP = false) {
@@ -638,6 +643,7 @@ export class AttendeeManager {
       }
 
       if (att._securityCooldown > 0) att._securityCooldown -= dt;
+      if (att._medicCooldown > 0) att._medicCooldown -= dt;
 
       // Wasted attendees collapse
       if (att.intoxLevel === 'wasted' && att.state !== STATE.PASSED_OUT && att.state !== STATE.LEAVING && att.state !== STATE.USING) {
@@ -660,7 +666,8 @@ export class AttendeeManager {
         else if (val > NEED_THRESHOLD) unhappy += 1;
       }
       const evtSatRate = this.events ? this.events.getActiveSatisfactionRate() : 0;
-      att.satisfaction = Math.max(0, Math.min(100, att.satisfaction - unhappy * dt * 0.5 + (unhappy === 0 ? dt * 2 : 0) + evtSatRate * dt));
+      const litterPen = this.services ? this.services.getLitterPenalty() * dt * 0.05 : 0;
+      att.satisfaction = Math.max(0, Math.min(100, att.satisfaction - unhappy * dt * 0.5 + (unhappy === 0 ? dt * 2 : 0) + evtSatRate * dt - litterPen));
       totalSat += att.satisfaction;
 
       if ((att.satisfaction < 20 || att.lifetime <= 0) && att.state !== STATE.LEAVING) {

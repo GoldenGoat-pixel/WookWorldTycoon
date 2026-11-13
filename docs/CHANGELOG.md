@@ -60,3 +60,17 @@
 - 12% chance an attendee who acquires party favors becomes a dealer (shown with pill bubble icon)
 - Guard state shown with emoji bubbles: magnifying glass (patrolling), siren (chasing), stop sign (confronting)
 - Strategic placement matters: security posts cover patrol radius, entrance gates catch contraband at the door
+
+### Janitors & Medics
+- Hiring janitor staff on restrooms or shower blocks now spawns an active janitor who patrols the grounds
+- Litter (cups, wrappers, scraps) accumulates near food tents, bars, merch stands, and VIP lounges during festivals
+- Litter buildup gradually reduces all attendee satisfaction — more litter means unhappier crowds
+- Janitors detect nearby litter, walk to it, sweep it up (with a cleaning animation), and resume patrol
+- Litter spawns faster with larger crowds, capping at 40 piles on the ground
+- Hiring medic staff on med tents now spawns active medics (up to 2 per tent) who patrol for patients
+- Medics scan for passed-out attendees (top priority), wasted attendees, and those critically low on energy
+- Passed-out and wasted attendees are picked up and escorted back to the med tent for treatment
+- Escorted patients get drinks reduced, energy restored, and a satisfaction boost on delivery
+- Low-energy attendees get field treatment without needing a trip to the tent
+- Janitors wear green uniforms with a broom; medics wear white with a red cross and med bag
+- Both show emoji bubbles for their current activity (sweeping, heading to litter, treating, escorting)

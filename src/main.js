@@ -16,6 +16,7 @@ import { Tutorial } from './ui/tutorial.js';
 import { getUpgradeById } from './game/upgrades.js';
 import { StaffManager } from './game/staff.js';
 import { SecurityGuardManager } from './game/security.js';
+import { ServiceWorkerManager } from './game/services.js';
 import { EventManager } from './game/events.js';
 import { getAdjacencyBonuses } from './game/adjacency.js';
 import { EffectsManager } from './game/effects.js';
@@ -89,6 +90,7 @@ infoPanel.onTierUpgrade = (entry) => {
 
 const staff = new StaffManager(scene);
 const security = new SecurityGuardManager(scene, world);
+const services = new ServiceWorkerManager(scene, world);
 const events = new EventManager();
 const effects = new EffectsManager(scene);
 const festival = new FestivalManager(economy, world, dayNight, staff);
@@ -96,6 +98,7 @@ infoPanel.setLiveSources(crowd, festival, staff);
 infoPanel.setWorld(world);
 crowd.setStaff(staff);
 crowd.setEvents(events);
+crowd.setServices(services);
 festival.events = events;
 effects.dayNight = dayNight;
 
@@ -407,6 +410,7 @@ festival.onPhaseChange = (phase) => {
     effects.setupBuildingEffects(world.placed);
     dayNight.setupBuildingGlow(world.placed);
     security.spawnGuards(staff);
+    services.spawnWorkers(staff);
     sounds.stopForestAmbience();
     sounds.startFestivalAmbience();
     sounds.playPlace();
@@ -417,6 +421,7 @@ festival.onPhaseChange = (phase) => {
     if (evtBanner) evtBanner.classList.add('hidden');
     crowd.clear();
     security.clear();
+    services.clear();
     effects.dispose();
     dayNight.clearBuildingGlow();
     sounds.stopFestivalAmbience();
@@ -879,6 +884,7 @@ function animate(time) {
   if (festival.phase === 'hosting') {
     events.update(dt);
     security.update(dt, crowd, economy);
+    services.update(dt, crowd, economy);
   }
 
   // Crowd simulation
