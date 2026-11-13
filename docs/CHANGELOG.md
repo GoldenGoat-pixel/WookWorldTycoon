@@ -74,3 +74,28 @@
 - Low-energy attendees get field treatment without needing a trip to the tent
 - Janitors wear green uniforms with a broom; medics wear white with a red cross and med bag
 - Both show emoji bubbles for their current activity (sweeping, heading to litter, treating, escorting)
+
+### Weather Visual Effects
+- Heatwave events now show rising golden heat shimmer particles across the festival grounds
+- Strong Wind events now show white wind streaks blowing horizontally through the scene
+- Shimmer particles pulse in opacity to simulate heat distortion
+- Both effects auto-clean when the event ends
+
+### Choice Events
+- ~35% of random events are now interactive decisions with two options
+- Fight Breaks Out: send security ($500) for a mood boost, or ignore it and risk satisfaction
+- Bad Batch: shut down a food vendor (lose food income) or keep it quiet (risk word spreading)
+- Noise Complaint: turn it down (less fun) or crank it up ($2,000 fine but huge mood boost)
+- Shady Vendor: take a bribe (+$3,000 but satisfaction dip) or stay legit (small mood boost)
+- Medical Emergency: call an ambulance ($1,500 for big satisfaction) or use the med tent (free, smaller boost)
+- Rival Festival: run promos ($2,000 for loyalty) or ignore them (some attendees lose interest)
+- Porta-Potty Overflow: emergency cleanup ($800) or rope it off (bladder needs spike)
+- Each choice has clear trade-offs between money and crowd satisfaction
+- Choice popup pauses event timer until you decide
+
+### Festival Star Rating & Reputation Milestones
+- Festival results now show a 1-5 star rating based on satisfaction score
+- 5 stars at 90%+, 4 at 75%+, 3 at 60%+, 2 at 40%+, 1 at 20%+
+- Stars displayed in gold (4-5), pale yellow (2-3), or gray (0-1)
+- Five reputation milestones unlock as you grow: Local Buzz (10), Rising Star (25), Festival Legend (50), Cultural Icon (75), Festival Empire (100)
+- Each milestone triggers a golden popup notification with title and flavor text

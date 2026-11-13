@@ -117,6 +117,78 @@ events.onEventEnd = () => {
   effects.clearEventVisual();
 };
 
+events.onChoiceEvent = (evt) => {
+  const overlay = document.getElementById('choice-overlay');
+  const header = document.getElementById('choice-header');
+  const buttons = document.getElementById('choice-buttons');
+  header.innerHTML = `<div style="font-size:28px;margin-bottom:6px">${evt.icon}</div><strong>${evt.name}</strong><br>${evt.message}`;
+  buttons.innerHTML = evt.choices.map((c, i) =>
+    `<button class="choice-btn" data-idx="${i}">
+      <span class="choice-label">${c.label}</span>
+      <span class="choice-desc">${c.desc}</span>
+    </button>`
+  ).join('');
+  overlay.classList.remove('hidden');
+  buttons.querySelectorAll('.choice-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      const choice = events.resolveChoice(idx, economy);
+      overlay.classList.add('hidden');
+      if (choice) {
+        showToast(`${evt.icon} ${choice.result}`);
+        if (choice.effects.satisfactionFlat) {
+          for (const att of crowd.attendees) {
+            att.satisfaction = Math.max(0, Math.min(100, att.satisfaction + choice.effects.satisfactionFlat));
+          }
+        }
+        if (events.active) {
+          updateEventBanner();
+          effects.setEventVisual(events.active.id);
+        }
+      }
+    }, { once: true });
+  });
+};
+
+const REP_MILESTONES = [
+  { rep: 10, title: 'Local Buzz', icon: '📰', desc: 'Word is getting around about your festivals!' },
+  { rep: 25, title: 'Rising Star', icon: '⭐', desc: 'People are starting to plan trips for your events.' },
+  { rep: 50, title: 'Festival Legend', icon: '🌟', desc: 'Your festival is a must-attend destination.' },
+  { rep: 75, title: 'Cultural Icon', icon: '👑', desc: 'Your festival defines the season.' },
+  { rep: 100, title: 'Festival Empire', icon: '🏆', desc: 'You\'ve built something truly legendary.' },
+];
+const reachedMilestones = new Set();
+
+function checkRepMilestones() {
+  const rep = economy.reputation;
+  for (const ms of REP_MILESTONES) {
+    if (rep >= ms.rep && !reachedMilestones.has(ms.rep)) {
+      reachedMilestones.add(ms.rep);
+      showRepMilestone(ms);
+    }
+  }
+}
+
+function showRepMilestone(ms) {
+  const el = document.getElementById('rep-milestone');
+  const content = document.getElementById('rep-milestone-content');
+  content.innerHTML = `<div style="font-size:32px">${ms.icon}</div><strong>${ms.title}</strong><br><span style="color:var(--text-dim);font-size:13px">${ms.desc}</span><br><span style="color:gold;font-size:12px">⭐ ${ms.rep} Reputation Reached</span>`;
+  el.classList.remove('hidden');
+  el.style.animation = 'none';
+  el.offsetHeight;
+  el.style.animation = '';
+  setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+function getStarRating(satisfaction) {
+  if (satisfaction >= 90) return 5;
+  if (satisfaction >= 75) return 4;
+  if (satisfaction >= 60) return 3;
+  if (satisfaction >= 40) return 2;
+  if (satisfaction >= 20) return 1;
+  return 0;
+}
+
 const gameState = {
   getPlacedCount: () => world.placed.length,
   getSelectedBuilding: () => selectedBuilding,
@@ -305,6 +377,12 @@ function showResults(r) {
   profitEl.style.color = r.netProfit >= 0 ? 'var(--money)' : 'var(--accent)';
   document.getElementById('res-rep').textContent = `+${r.reputationEarned} ⭐`;
 
+  // Star rating
+  const stars = getStarRating(r.satisfaction);
+  const starsEl = document.getElementById('res-stars');
+  starsEl.textContent = '★'.repeat(stars) + '☆'.repeat(5 - stars);
+  starsEl.style.color = stars >= 4 ? 'gold' : stars >= 2 ? '#cca' : '#666';
+
   // Satisfaction breakdown
   const breakdownEl = document.getElementById('res-breakdown');
   breakdownEl.classList.add('hidden');
@@ -374,6 +452,7 @@ function checkObjectives() {
   }
   if (economy.reputation > prevRep) {
     buildMenu.refresh();
+    checkRepMilestones();
   }
 }
 

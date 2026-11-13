@@ -7,6 +7,8 @@ export class EffectsManager {
     this.scene = scene;
     this.rain = null;
     this.confetti = null;
+    this.heatShimmer = null;
+    this.windStreaks = null;
     this.smokes = [];
     this.spotlights = [];
     this.ferrisWheels = [];
@@ -22,6 +24,10 @@ export class EffectsManager {
       this._createRain();
     } else if (eventId === 'surprise_guest' || eventId === 'golden_hour' || eventId === 'vip_arrival') {
       this._createConfetti();
+    } else if (eventId === 'heatwave') {
+      this._createHeatShimmer();
+    } else if (eventId === 'wind') {
+      this._createWindStreaks();
     }
   }
 
@@ -49,6 +55,8 @@ export class EffectsManager {
   update(dt) {
     if (this.rain) this._updateRain(dt);
     if (this.confetti) this._updateConfetti(dt);
+    if (this.heatShimmer) this._updateHeatShimmer(dt);
+    if (this.windStreaks) this._updateWindStreaks(dt);
     this._updateSmokes(dt);
     this._updateSpotlights(dt);
     this._updateFerrisWheels(dt);
@@ -232,6 +240,87 @@ export class EffectsManager {
     }
   }
 
+  _createHeatShimmer() {
+    const count = 300;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+    const ages = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 100;
+      pos[i * 3 + 1] = Math.random() * 3;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 100;
+      ages[i] = Math.random() * 4;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({
+      color: 0xffcc66,
+      size: 1.2,
+      transparent: true,
+      opacity: 0.15,
+      depthWrite: false
+    });
+    const mesh = new THREE.Points(geo, mat);
+    this.scene.add(mesh);
+    this.heatShimmer = { mesh, ages, count };
+  }
+
+  _updateHeatShimmer(dt) {
+    const pos = this.heatShimmer.mesh.geometry.attributes.position;
+    const arr = pos.array;
+    for (let i = 0; i < this.heatShimmer.count; i++) {
+      this.heatShimmer.ages[i] += dt;
+      arr[i * 3 + 1] += dt * (0.5 + Math.sin(this.heatShimmer.ages[i] * 2) * 0.3);
+      arr[i * 3] += Math.sin(this.heatShimmer.ages[i] * 3 + i) * dt * 0.2;
+      if (arr[i * 3 + 1] > 4 || this.heatShimmer.ages[i] > 4) {
+        arr[i * 3] = (Math.random() - 0.5) * 100;
+        arr[i * 3 + 1] = 0;
+        arr[i * 3 + 2] = (Math.random() - 0.5) * 100;
+        this.heatShimmer.ages[i] = 0;
+      }
+    }
+    this.heatShimmer.mesh.material.opacity = 0.1 + Math.sin(performance.now() * 0.001) * 0.05;
+    pos.needsUpdate = true;
+  }
+
+  _createWindStreaks() {
+    const count = 150;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+    const vel = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 120;
+      pos[i * 3 + 1] = 0.5 + Math.random() * 8;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 120;
+      vel[i] = 15 + Math.random() * 20;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({
+      color: 0xcccccc,
+      size: 0.5,
+      transparent: true,
+      opacity: 0.25,
+      depthWrite: false
+    });
+    const mesh = new THREE.Points(geo, mat);
+    this.scene.add(mesh);
+    this.windStreaks = { mesh, vel, count };
+  }
+
+  _updateWindStreaks(dt) {
+    const pos = this.windStreaks.mesh.geometry.attributes.position;
+    const arr = pos.array;
+    for (let i = 0; i < this.windStreaks.count; i++) {
+      arr[i * 3] += this.windStreaks.vel[i] * dt;
+      arr[i * 3 + 1] += Math.sin(performance.now() * 0.003 + i) * dt * 0.5;
+      if (arr[i * 3] > 60) {
+        arr[i * 3] = -60;
+        arr[i * 3 + 1] = 0.5 + Math.random() * 8;
+        arr[i * 3 + 2] = (Math.random() - 0.5) * 120;
+      }
+    }
+    pos.needsUpdate = true;
+  }
+
   _clearEventEffects() {
     if (this.rain) {
       this.scene.remove(this.rain.mesh);
@@ -244,6 +333,18 @@ export class EffectsManager {
       this.confetti.mesh.geometry.dispose();
       this.confetti.mesh.material.dispose();
       this.confetti = null;
+    }
+    if (this.heatShimmer) {
+      this.scene.remove(this.heatShimmer.mesh);
+      this.heatShimmer.mesh.geometry.dispose();
+      this.heatShimmer.mesh.material.dispose();
+      this.heatShimmer = null;
+    }
+    if (this.windStreaks) {
+      this.scene.remove(this.windStreaks.mesh);
+      this.windStreaks.mesh.geometry.dispose();
+      this.windStreaks.mesh.material.dispose();
+      this.windStreaks = null;
     }
   }
 

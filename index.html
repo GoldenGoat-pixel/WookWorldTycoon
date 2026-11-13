@@ -72,6 +72,19 @@
   <!-- Event banner (active weather/event) -->
   <div id="event-banner" class="hidden"></div>
 
+  <!-- Choice event popup -->
+  <div id="choice-overlay" class="hidden">
+    <div id="choice-card">
+      <div id="choice-header"></div>
+      <div id="choice-buttons"></div>
+    </div>
+  </div>
+
+  <!-- Reputation milestone popup -->
+  <div id="rep-milestone" class="hidden">
+    <div id="rep-milestone-content"></div>
+  </div>
+
   <!-- Build menu -->
   <div id="build-menu" class="panel hidden">
     <div class="panel-header">
@@ -139,6 +152,10 @@
         <div class="res-divider"></div>
         <div class="res-row total"><span>Net Profit</span><span id="res-profit">$0</span></div>
         <div class="res-row"><span>Reputation Earned</span><span id="res-rep" class="rep">+0 ⭐</span></div>
+      </div>
+      <div id="res-star-rating">
+        <span class="star-label">Festival Rating</span>
+        <span id="res-stars"></span>
       </div>
       <button id="res-breakdown-toggle" class="breakdown-toggle">📊 Satisfaction Breakdown</button>
       <div id="res-breakdown" class="breakdown hidden">
