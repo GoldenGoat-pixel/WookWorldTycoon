@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-14
+
+### Tutorial & Visibility Fixes
+- Tutorial no longer pops up every session — the HELP button replays it without clearing the "done" flag, so future new games stay tutorial-free
+- Switching apps on mobile no longer reloads the game after just 3 seconds; threshold raised to 5 minutes
+- Game now auto-saves immediately when the tab/app goes to background, preventing progress loss on reload
+
 ## 2026-11-11
 
 ### Building Upgrade Tiers

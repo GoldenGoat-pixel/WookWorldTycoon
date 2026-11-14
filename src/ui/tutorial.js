@@ -155,8 +155,9 @@ export class Tutorial {
   }
 
   restart(gameState) {
-    this.skip();
-    try { localStorage.removeItem(TUTORIAL_KEY); } catch {}
+    this._active = false;
+    this._stopPolling();
+    this._removeUI();
     setTimeout(() => this.start(gameState), 100);
   }
 

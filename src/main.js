@@ -859,7 +859,16 @@ let _lastHidden = 0;
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     _lastHidden = Date.now();
-  } else if (_lastHidden > 0 && Date.now() - _lastHidden > 3000) {
+    if (activeSlot >= 0) {
+      saveGame(activeSlot, {
+        economy: economy.toJSON(),
+        buildings: world.toJSON(),
+        festival: festival.toJSON(),
+        objectives: objectives.toJSON(),
+        staff: staff.toJSON()
+      });
+    }
+  } else if (_lastHidden > 0 && Date.now() - _lastHidden > 300000) {
     window.location.href = window.location.pathname + '?t=' + Date.now();
   }
 });
