@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-16
+
+### Desire-Driven Attendee AI
+- Attendees now intelligently choose where to wander based on their needs, not randomly
+- Moderate needs (40+) bias attendees toward buildings that can help, creating a natural "drifting toward food" effect before they get desperate
+- At need level 45+ attendees actively drift toward relevant buildings without full queue-seeking behavior
+- New attendees explore the festival grounds — they prefer visiting building types they haven't tried yet
+- Stage attraction: attendees within earshot of a stage are drawn toward it even if their fun need is low
+- Social clustering: 20% chance attendees wander toward other attendees, creating natural crowd pockets
+- Attendees track which building types they've visited throughout their stay
+
 ## 2026-11-14
 
 ### Tutorial & Visibility Fixes

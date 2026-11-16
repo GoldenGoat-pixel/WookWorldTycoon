@@ -54,6 +54,8 @@ const MAX_QUEUE = 6;
 
 const NEED_THRESHOLD = 60;
 const CRITICAL_THRESHOLD = 85;
+const SOFT_SEEK_THRESHOLD = 45;
+const DRIFT_THRESHOLD = 40;
 
 const BUBBLE_ICONS = {
   hunger:  '🍔',
@@ -159,6 +161,8 @@ class Attendee {
     this.isDealer = false;
     this._securityCooldown = 0;
     this._medicCooldown = 0;
+    this.visitedBuildings = new Set();
+    this.startLifetime = this.lifetime;
   }
 
   get intoxLevel() {
@@ -397,6 +401,72 @@ export class AttendeeManager {
     return new THREE.Vector3(entry.gridX, 0, entry.gridZ + entry.sizeZ / 2 + 2);
   }
 
+  _pickSmartTarget(att) {
+    const placed = this.world.placed;
+    if (placed.length === 0) return null;
+
+    // Social clustering: 20% chance to drift toward another attendee
+    if (this.attendees.length > 5 && Math.random() < 0.2) {
+      const other = this.attendees[Math.floor(Math.random() * this.attendees.length)];
+      if (other !== att && other.state !== STATE.LEAVING && other.state !== STATE.PASSED_OUT) {
+        const ox = other.mesh.position.x + (Math.random() - 0.5) * 3;
+        const oz = other.mesh.position.z + (Math.random() - 0.5) * 3;
+        if (!this._isOccupied(ox, oz)) return new THREE.Vector3(ox, 0, oz);
+      }
+    }
+
+    // Stage attraction: if near a stage and fun > 20, 40% chance to head toward it
+    if (att.needs.fun > 20 && Math.random() < 0.4) {
+      const stageIds = NEED_BUILDINGS.fun;
+      for (const e of placed) {
+        if (!stageIds.includes(e.data.id)) continue;
+        const d = dist2D(att.mesh.position, { x: e.gridX, z: e.gridZ });
+        if (d < 15) {
+          const tx = e.gridX + (Math.random() - 0.5) * (e.sizeX + 4);
+          const tz = e.gridZ + e.sizeZ / 2 + 1 + Math.random() * 2;
+          if (!this._isOccupied(tx, tz)) return new THREE.Vector3(tx, 0, tz);
+        }
+      }
+    }
+
+    // Score buildings based on need urgency, distance, novelty, crowd density
+    const isExploring = att.lifetime > att.startLifetime * 0.8;
+    let bestEntries = [];
+
+    for (const entry of placed) {
+      let score = 0;
+      const bid = entry.data.id;
+      const d = dist2D(att.mesh.position, { x: entry.gridX, z: entry.gridZ });
+      const distScore = Math.max(0, 30 - d);
+
+      for (const [need, ids] of Object.entries(NEED_BUILDINGS)) {
+        if (ids.includes(bid) && att.needs[need] > DRIFT_THRESHOLD) {
+          score += att.needs[need] * 0.5;
+        }
+      }
+
+      if (entry.data.capacity || entry.data.income) score += 5;
+      if (isExploring && !att.visitedBuildings.has(bid)) score += 15;
+      score += distScore * 0.3;
+
+      if (score > 0) bestEntries.push({ entry, score });
+    }
+
+    if (bestEntries.length > 0) {
+      bestEntries.sort((a, b) => b.score - a.score);
+      const pick = bestEntries[Math.floor(Math.random() * Math.min(3, bestEntries.length))];
+      const e = pick.entry;
+      for (let tries = 0; tries < 4; tries++) {
+        const tx = e.gridX + (Math.random() - 0.5) * (e.sizeX + 6);
+        const tz = e.gridZ + e.sizeZ / 2 + 1.5 + Math.random() * 2;
+        if (!this._isOccupied(tx, tz)) return new THREE.Vector3(tx, 0, tz);
+      }
+      return new THREE.Vector3(e.gridX, 0, e.gridZ + e.sizeZ / 2 + 2);
+    }
+
+    return this._pickWanderTarget(att);
+  }
+
   _getEntryPoint() {
     const half = this.world.gridSize / 2;
     const edge = Math.floor(Math.random() * 4);
@@ -593,7 +663,7 @@ export class AttendeeManager {
     const att = new Attendee(mesh, ep.x, ep.z, isVIP);
     att.hasContraband = Math.random() < 0.15;
 
-    const wt = this._pickWanderTarget(att);
+    const wt = this._pickSmartTarget(att);
     if (!wt) return;
     att.target = wt;
     att.state = STATE.ENTERING;
@@ -692,9 +762,10 @@ export class AttendeeManager {
       switch (att.state) {
         case STATE.ENTERING:
         case STATE.WANDERING: {
-          if (!att.target) att.target = this._pickWanderTarget(att);
+          if (!att.target) att.target = this._pickSmartTarget(att);
           if (!att.target) break;
 
+          // Full seeking at NEED_THRESHOLD (60)
           const urgent = att.getMostUrgentNeed();
           if (urgent && !att.targetEntry) {
             const entry = this._findNearestBuilding(att, urgent);
@@ -708,6 +779,23 @@ export class AttendeeManager {
               );
               att._seekingNeed = urgent;
               break;
+            }
+          }
+
+          // Soft-seek: drift toward buildings for moderate needs (45-60) without entering SEEKING
+          if (!urgent && !att.targetEntry) {
+            for (const [need, val] of Object.entries(att.needs)) {
+              if (val >= SOFT_SEEK_THRESHOLD && val < NEED_THRESHOLD) {
+                const entry = this._findNearestBuilding(att, need);
+                if (entry) {
+                  att.target = new THREE.Vector3(
+                    entry.gridX + (Math.random() - 0.5) * (entry.sizeX + 4),
+                    0,
+                    entry.gridZ + entry.sizeZ / 2 + 1.5 + Math.random() * 2
+                  );
+                  break;
+                }
+              }
             }
           }
 
@@ -736,7 +824,7 @@ export class AttendeeManager {
 
             att.state = STATE.WANDERING;
             att.wanderTimer = 2 + Math.random() * 4;
-            att.target = this._pickWanderTarget(att);
+            att.target = this._pickSmartTarget(att);
           }
           break;
         }
@@ -768,7 +856,7 @@ export class AttendeeManager {
               } else {
                 att.satisfaction = Math.max(0, att.satisfaction - 3);
                 att.state = STATE.WANDERING;
-                att.target = this._pickWanderTarget(att);
+                att.target = this._pickSmartTarget(att);
                 att.targetEntry = null;
                 att._seekingNeed = null;
               }
@@ -788,7 +876,7 @@ export class AttendeeManager {
             if (idx !== -1) q.splice(idx, 1);
             att.satisfaction = Math.max(0, att.satisfaction - 5);
             att.state = STATE.WANDERING;
-            att.target = this._pickWanderTarget(att);
+            att.target = this._pickSmartTarget(att);
             att.targetEntry = null;
             att._seekingNeed = null;
           }
@@ -828,8 +916,9 @@ export class AttendeeManager {
             }
 
             att.satisfaction = Math.min(100, att.satisfaction + 5);
+            att.visitedBuildings.add(entry.data.id);
             att.state = STATE.WANDERING;
-            att.target = this._pickWanderTarget(att);
+            att.target = this._pickSmartTarget(att);
             att.targetEntry = null;
             att._seekingNeed = null;
           }
@@ -869,7 +958,7 @@ export class AttendeeManager {
 
           if (stopDancing) {
             att.state = STATE.WANDERING;
-            att.target = this._pickWanderTarget(att);
+            att.target = this._pickSmartTarget(att);
           }
           break;
         }
@@ -885,7 +974,7 @@ export class AttendeeManager {
           if (att.wanderTimer <= 0 || att.getCriticalNeed()) {
             att.mesh.position.y = 0;
             att.state = STATE.WANDERING;
-            att.target = this._pickWanderTarget(att);
+            att.target = this._pickSmartTarget(att);
           }
           break;
         }
@@ -916,7 +1005,7 @@ export class AttendeeManager {
               );
             } else {
               att.state = STATE.WANDERING;
-              att.target = this._pickWanderTarget(att);
+              att.target = this._pickSmartTarget(att);
             }
           }
           break;
