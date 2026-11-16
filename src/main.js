@@ -322,6 +322,7 @@ const toolbar = new Toolbar(tool => {
 
   if (tool === 'build') {
     buildMenu.show();
+    prepPanel.classList.add('hidden');
   } else {
     buildMenu.hide();
   }
@@ -560,6 +561,7 @@ const prepPanel = document.getElementById('prep-panel');
 document.getElementById('prep-btn').addEventListener('click', () => {
   festivalPanel.classList.add('hidden');
   objectivesPanel.classList.add('hidden');
+  buildMenu.hide();
   prepPanel.classList.toggle('hidden');
   if (!prepPanel.classList.contains('hidden')) renderPrepBoard();
 });

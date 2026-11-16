@@ -21,6 +21,18 @@
 - Added quiet vendor sale chime for background transaction audio
 - All audio remains fully procedural WebAudio — no samples or files
 
+### Between-Festival Prep Board
+- New "Prep Board" panel available during the planning phase between festivals
+- 11 purchasable prep actions let you invest cash and reputation into strategic boosts before each festival
+- Flyer Campaign and Social Media Blitz increase attendance; Headline Act adds attendance + satisfaction
+- Vendor Scouting boosts vendor income; Staff Training speeds up all staffed buildings
+- Sound Check improves stage satisfaction; Safety Inspection grants event immunity on day 1
+- Weather Forecast halves weather-event penalties; VIP Outreach doubles VIP spawns and spending
+- Community Cleanup cuts litter spawn in half; Sponsor Deal trades satisfaction for free cash
+- Actions have reputation requirements (up to 35 rep) gating advanced options behind progression
+- Some actions have cooldowns preventing use every season, adding strategic timing decisions
+- All prep bonuses apply automatically when the festival starts and clear when planning returns
+
 ## 2026-11-14
 
 ### Tutorial & Visibility Fixes
