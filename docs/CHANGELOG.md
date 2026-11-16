@@ -11,6 +11,16 @@
 - Social clustering: 20% chance attendees wander toward other attendees, creating natural crowd pockets
 - Attendees track which building types they've visited throughout their stay
 
+### Procedural Audio Overhaul
+- Each stage type now generates its own music layer during festivals: synth melodies (medium stage), driving kick drums (main stage), wobble bass and fast hi-hats (DJ booth), gentle arpeggios (acoustic tent), and a combined wall of sound with sub-bass sweeps (mega stage)
+- Dynamic crowd ambience: murmur frequency scales with crowd size, low rumble layer kicks in above 200 attendees
+- Crowd mood reactions: happy crowds occasionally cheer ("woo!"), unhappy crowds boo — both procedurally generated
+- Rain events now trigger gentle rain ambience (filtered noise at 800Hz)
+- Wind events now trigger aggressive wind sounds (filtered noise at 1200Hz)
+- Added thunder clap sound effect (low-frequency noise burst + descending sine sweep)
+- Added quiet vendor sale chime for background transaction audio
+- All audio remains fully procedural WebAudio — no samples or files
+
 ## 2026-11-14
 
 ### Tutorial & Visibility Fixes

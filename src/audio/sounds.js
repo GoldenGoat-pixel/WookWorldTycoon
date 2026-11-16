@@ -18,6 +18,18 @@ export class SoundSystem {
     this._festMurmurInterval = null;
     this._festPadNoteIndex = 0;
     this._festPadInterval = null;
+    this._stageLayers = [];
+    this._crowdRumbleSource = null;
+    this._crowdRumbleGain = null;
+    this._crowdReactionInterval = null;
+    this._lastCrowdSize = 0;
+    this._lastSatisfaction = 50;
+
+    // Weather ambience refs
+    this._rainSource = null;
+    this._rainGain = null;
+    this._windSource = null;
+    this._windGain = null;
 
     // Forest ambience refs
     this._forestWindSource = null;
@@ -161,7 +173,7 @@ export class SoundSystem {
   }
 
   // --- Festival ambience (hosting phase) ---
-  startFestivalAmbience() {
+  startFestivalAmbience(stages) {
     if (!this.initialized) return;
     this.stopFestivalAmbience();
 
@@ -211,6 +223,285 @@ export class SoundSystem {
       noise.start(t);
       noise.stop(t + dur);
     }, 5000 + Math.random() * 3000);
+
+    // Stage-specific music layers
+    if (stages && stages.length > 0) {
+      this._startStageMusicLayers(stages);
+    }
+  }
+
+  _startStageMusicLayers(stages) {
+    const seen = new Set();
+    for (const entry of stages) {
+      const id = entry.data.id;
+      if (seen.has(id)) continue;
+      seen.add(id);
+
+      switch (id) {
+        case 'medium_stage': this._layerMediumStage(); break;
+        case 'main_stage': this._layerMainStage(); break;
+        case 'dj_booth': this._layerDJBooth(); break;
+        case 'acoustic_tent': this._layerAcousticTent(); break;
+        case 'mega_stage':
+          this._layerMediumStage(0.05);
+          this._layerMainStage(0.05);
+          this._layerDJBooth(0.04);
+          this._layerAcousticTent(0.04);
+          this._layerMegaSweep();
+          break;
+      }
+    }
+  }
+
+  _layerMediumStage(vol = 0.04) {
+    const pentatonic = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33];
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = pentatonic[0];
+    gain.gain.value = vol;
+    osc.connect(gain).connect(this.musicGain);
+    osc.start();
+
+    let idx = 0;
+    const iv = setInterval(() => {
+      if (!osc.frequency) return;
+      idx = (idx + 1) % pentatonic.length;
+      try {
+        osc.frequency.exponentialRampToValueAtTime(pentatonic[idx], this.ctx.currentTime + 0.15);
+      } catch {}
+    }, 800 + Math.random() * 400);
+
+    this._stageLayers.push({ osc, gain, interval: iv });
+  }
+
+  _layerMainStage(vol = 0.04) {
+    // Driving bass note
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = 82.41; // E2
+    gain.gain.value = vol;
+    osc.connect(gain).connect(this.musicGain);
+    osc.start();
+    this._stageLayers.push({ osc, gain });
+
+    // Kick drum pattern
+    const iv = setInterval(() => {
+      if (!this.initialized) return;
+      const t = this.ctx.currentTime;
+      const kickOsc = this.ctx.createOscillator();
+      const kickGain = this.ctx.createGain();
+      kickOsc.type = 'sine';
+      kickOsc.frequency.setValueAtTime(150, t);
+      kickOsc.frequency.exponentialRampToValueAtTime(40, t + 0.08);
+      kickGain.gain.setValueAtTime(0.06, t);
+      kickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+      kickOsc.connect(kickGain).connect(this.musicGain);
+      kickOsc.start(t);
+      kickOsc.stop(t + 0.12);
+    }, 500);
+    this._stageLayers.push({ interval: iv });
+  }
+
+  _layerDJBooth(vol = 0.035) {
+    // Wobble bass with LFO
+    const osc = this.ctx.createOscillator();
+    const lfo = this.ctx.createOscillator();
+    const lfoGain = this.ctx.createGain();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = 110;
+    lfo.type = 'sine';
+    lfo.frequency.value = 3;
+    lfoGain.gain.value = 40;
+    lfo.connect(lfoGain).connect(osc.frequency);
+    gain.gain.value = vol;
+    osc.connect(gain).connect(this.musicGain);
+    osc.start();
+    lfo.start();
+    this._stageLayers.push({ osc, gain, extra: [lfo, lfoGain] });
+
+    // Fast hi-hats
+    const iv = setInterval(() => {
+      if (!this.initialized) return;
+      const t = this.ctx.currentTime;
+      const bufLen = Math.floor(this.ctx.sampleRate * 0.02);
+      const buf = this.ctx.createBuffer(1, bufLen, this.ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      const hp = this.ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 9000;
+      const g = this.ctx.createGain();
+      g.gain.value = 0.03;
+      src.connect(hp).connect(g).connect(this.musicGain);
+      src.start(t);
+    }, 250);
+    this._stageLayers.push({ interval: iv });
+  }
+
+  _layerAcousticTent(vol = 0.035) {
+    const notes = [523.25, 659.25, 783.99, 659.25, 523.25, 440.00]; // C5 E5 G5 E5 C5 A4
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = notes[0];
+    gain.gain.value = vol;
+    osc.connect(gain).connect(this.musicGain);
+    osc.start();
+
+    let idx = 0;
+    const iv = setInterval(() => {
+      if (!osc.frequency) return;
+      idx = (idx + 1) % notes.length;
+      try {
+        osc.frequency.exponentialRampToValueAtTime(notes[idx], this.ctx.currentTime + 0.3);
+      } catch {}
+    }, 1200);
+
+    this._stageLayers.push({ osc, gain, interval: iv });
+  }
+
+  _layerMegaSweep() {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 30;
+    gain.gain.value = 0.06;
+    osc.connect(gain).connect(this.musicGain);
+    osc.start();
+
+    const iv = setInterval(() => {
+      if (!osc.frequency) return;
+      try {
+        const t = this.ctx.currentTime;
+        osc.frequency.setValueAtTime(30, t);
+        osc.frequency.exponentialRampToValueAtTime(55, t + 3);
+        osc.frequency.exponentialRampToValueAtTime(30, t + 6);
+      } catch {}
+    }, 6000);
+
+    this._stageLayers.push({ osc, gain, interval: iv });
+  }
+
+  _stopStageLayers() {
+    for (const layer of this._stageLayers) {
+      if (layer.osc) { try { layer.osc.stop(); } catch {} }
+      if (layer.extra) {
+        for (const node of layer.extra) {
+          if (node.stop) { try { node.stop(); } catch {} }
+        }
+      }
+      if (layer.interval) clearInterval(layer.interval);
+    }
+    this._stageLayers.length = 0;
+  }
+
+  // --- Dynamic crowd ambience ---
+  updateCrowdAmbience(crowdSize, satisfaction) {
+    if (!this.initialized) return;
+    this._lastCrowdSize = crowdSize;
+    this._lastSatisfaction = satisfaction;
+
+    // Adjust murmur interval based on crowd size
+    if (this._festMurmurInterval) {
+      clearInterval(this._festMurmurInterval);
+      const baseInterval = Math.max(1500, 5000 - crowdSize * 15);
+      this._festMurmurInterval = setInterval(() => {
+        if (!this.initialized) return;
+        const t = this.ctx.currentTime;
+        const dur = 0.8 + Math.random() * 0.6;
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this._makeNoiseBuffer(dur);
+        const bp = this.ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 600 + Math.random() * 400;
+        bp.Q.value = 0.8;
+        const vol = Math.min(0.07, 0.02 + crowdSize * 0.0002);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.linearRampToValueAtTime(vol, t + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        noise.connect(bp).connect(gain).connect(this.musicGain);
+        noise.start(t);
+        noise.stop(t + dur);
+      }, baseInterval + Math.random() * 1000);
+    }
+
+    // Crowd rumble for large crowds
+    if (crowdSize > 200 && !this._crowdRumbleSource) {
+      const buf = this._makeNoiseBuffer(4);
+      this._crowdRumbleSource = this.ctx.createBufferSource();
+      this._crowdRumbleSource.buffer = buf;
+      this._crowdRumbleSource.loop = true;
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 200;
+      this._crowdRumbleGain = this.ctx.createGain();
+      this._crowdRumbleGain.gain.value = 0.03;
+      this._crowdRumbleSource.connect(lp).connect(this._crowdRumbleGain).connect(this.musicGain);
+      this._crowdRumbleSource.start();
+    } else if (crowdSize <= 150 && this._crowdRumbleSource) {
+      try { this._crowdRumbleSource.stop(); } catch {}
+      this._crowdRumbleSource = null;
+      this._crowdRumbleGain = null;
+    }
+
+    // Scale rumble volume with crowd
+    if (this._crowdRumbleGain) {
+      this._crowdRumbleGain.gain.value = Math.min(0.06, 0.02 + (crowdSize - 200) * 0.0001);
+    }
+
+    // Crowd reactions based on satisfaction
+    if (!this._crowdReactionInterval) {
+      this._crowdReactionInterval = setInterval(() => {
+        if (!this.initialized) return;
+        const sat = this._lastSatisfaction;
+        const size = this._lastCrowdSize;
+        if (size < 20) return;
+
+        if (sat > 70 && Math.random() < 0.4) {
+          this._playWoo();
+        } else if (sat < 40 && Math.random() < 0.3) {
+          this._playBoo();
+        }
+      }, 4000 + Math.random() * 3000);
+    }
+  }
+
+  _playWoo() {
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    const base = 400 + Math.random() * 200;
+    osc.frequency.setValueAtTime(base, t);
+    osc.frequency.exponentialRampToValueAtTime(base * 2.2, t + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(base * 1.8, t + 0.3);
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.linearRampToValueAtTime(0.06, t + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    osc.connect(gain).connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.35);
+  }
+
+  _playBoo() {
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(250, t);
+    osc.frequency.exponentialRampToValueAtTime(120, t + 0.25);
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.linearRampToValueAtTime(0.04, t + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    osc.connect(gain).connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.3);
   }
 
   stopFestivalAmbience() {
@@ -220,6 +511,99 @@ export class SoundSystem {
     this._festPadGain = null;
     if (this._festPadInterval) { clearInterval(this._festPadInterval); this._festPadInterval = null; }
     if (this._festMurmurInterval) { clearInterval(this._festMurmurInterval); this._festMurmurInterval = null; }
+    this._stopStageLayers();
+    if (this._crowdRumbleSource) { try { this._crowdRumbleSource.stop(); } catch {} this._crowdRumbleSource = null; }
+    this._crowdRumbleGain = null;
+    if (this._crowdReactionInterval) { clearInterval(this._crowdReactionInterval); this._crowdReactionInterval = null; }
+  }
+
+  // --- Weather / event sounds ---
+  playRainAmbience() {
+    if (!this.initialized || this._rainSource) return;
+    const buf = this._makeNoiseBuffer(4);
+    this._rainSource = this.ctx.createBufferSource();
+    this._rainSource.buffer = buf;
+    this._rainSource.loop = true;
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 800;
+    bp.Q.value = 0.6;
+    this._rainGain = this.ctx.createGain();
+    this._rainGain.gain.value = 0.04;
+    this._rainSource.connect(bp).connect(this._rainGain).connect(this.musicGain);
+    this._rainSource.start();
+  }
+
+  stopRainAmbience() {
+    if (this._rainSource) { try { this._rainSource.stop(); } catch {} this._rainSource = null; }
+    this._rainGain = null;
+  }
+
+  playWindSound() {
+    if (!this.initialized || this._windSource) return;
+    const buf = this._makeNoiseBuffer(4);
+    this._windSource = this.ctx.createBufferSource();
+    this._windSource.buffer = buf;
+    this._windSource.loop = true;
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1200;
+    bp.Q.value = 0.8;
+    this._windGain = this.ctx.createGain();
+    this._windGain.gain.value = 0.05;
+    this._windSource.connect(bp).connect(this._windGain).connect(this.musicGain);
+    this._windSource.start();
+  }
+
+  stopWindSound() {
+    if (this._windSource) { try { this._windSource.stop(); } catch {} this._windSource = null; }
+    this._windGain = null;
+  }
+
+  playThunderClap() {
+    if (!this.initialized) return;
+    const t = this.ctx.currentTime;
+
+    // Low rumble noise burst
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = this._makeNoiseBuffer(1.5);
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 300;
+    const nGain = this.ctx.createGain();
+    nGain.gain.setValueAtTime(0.15, t);
+    nGain.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
+    noise.connect(lp).connect(nGain).connect(this.sfxGain);
+    noise.start(t);
+    noise.stop(t + 1.5);
+
+    // Descending sine sweep
+    const osc = this.ctx.createOscillator();
+    const oGain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(200, t);
+    osc.frequency.exponentialRampToValueAtTime(30, t + 0.8);
+    oGain.gain.setValueAtTime(0.1, t);
+    oGain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+    osc.connect(oGain).connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.8);
+  }
+
+  // --- Vendor sale chime ---
+  playVendorSale() {
+    if (!this.initialized) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1800, t);
+    osc.frequency.setValueAtTime(2200, t + 0.04);
+    gain.gain.setValueAtTime(0.02, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    osc.connect(gain).connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.08);
   }
 
   // --- Forest ambience (planning phase) ---
