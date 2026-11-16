@@ -351,8 +351,7 @@ export class ServiceWorkerManager {
     );
     if (litterSources.length === 0) return;
 
-    // Chance scales with crowd
-    const chance = Math.min(0.8, crowd.attendees.length / 150);
+    const chance = Math.min(0.8, crowd.attendees.length / 150) * (this.litterSpawnMult || 1);
     if (Math.random() > chance) return;
 
     const src = litterSources[Math.floor(Math.random() * litterSources.length)];

@@ -281,6 +281,8 @@ export class EventManager {
   update(dt) {
     if (this.pendingChoice) return;
 
+    if (this.immunityTime > 0) this.immunityTime -= dt;
+
     if (this.cooldown > 0) {
       this.cooldown -= dt;
     }
@@ -296,6 +298,8 @@ export class EventManager {
       }
       return;
     }
+
+    if (this.immunityTime > 0) return;
 
     if (this.cooldown <= 0 && Math.random() < dt * 0.02) {
       if (Math.random() < 0.35) {
@@ -368,7 +372,14 @@ export class EventManager {
   }
 
   getActiveSatisfactionRate() {
-    return this.active?.effects?.satisfactionRate || 0;
+    const rate = this.active?.effects?.satisfactionRate || 0;
+    if (rate < 0 && this.weatherResistance > 0) {
+      const id = this.active?.id || '';
+      if (id === 'rain' || id === 'heatwave' || id === 'wind' || id === 'mud') {
+        return rate * (1 - this.weatherResistance);
+      }
+    }
+    return rate;
   }
 
   getActiveSatisfactionFlat() {
@@ -397,5 +408,7 @@ export class EventManager {
     this.history = [];
     this.pendingChoice = null;
     this._choiceEffects = null;
+    this.immunityTime = 0;
+    this.weatherResistance = 0;
   }
 }

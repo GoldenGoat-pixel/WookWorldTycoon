@@ -98,7 +98,7 @@ export class StaffManager {
   getServiceSpeedMultiplier(entry) {
     const count = this.getCount(entry);
     if (count === 0) return 1;
-    return 1 + count * 0.3;
+    return 1 + count * 0.3 + (this.prepSpeedBonus || 0);
   }
 
   getIncomeMultiplier(entry) {

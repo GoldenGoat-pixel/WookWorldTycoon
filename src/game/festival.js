@@ -29,6 +29,7 @@ export class FestivalManager {
     this.bestSatisfaction = 0;
     this.onPhaseChange = null;
     this.liveSatisfaction = null;
+    this.prepBonuses = null;
   }
 
   get dayDuration() {
@@ -59,7 +60,8 @@ export class FestivalManager {
     const cap = this.getMaxCapacity();
     const repMult = 0.5 + Math.min(this.economy.reputation, 100) / 100;
     const priceMult = Math.max(0.2, 1.4 - this.ticketPrice / 150);
-    return Math.floor(cap * repMult * priceMult);
+    const prepMult = 1 + (this.prepBonuses ? this.prepBonuses.attendanceBonus : 0);
+    return Math.floor(cap * repMult * priceMult * prepMult);
   }
 
   calculateExpenses() {
@@ -103,7 +105,8 @@ export class FestivalManager {
       const staffMult = this.staff ? this.staff.getIncomeMultiplier(e) : 1;
       const evtMult = this.events ? this.events.getActiveIncomeMult(e.data.id) : 1;
       const adjMult = getAdjacencyIncomeMult(e, this.world.placed);
-      const earned = Math.floor((base + tierBoost * 0.1) * scale * staffMult * evtMult * adjMult);
+      const prepVendorMult = 1 + (this.prepBonuses ? this.prepBonuses.vendorIncomeBonus : 0);
+      const earned = Math.floor((base + tierBoost * 0.1) * scale * staffMult * evtMult * adjMult * prepVendorMult);
       income += earned;
       this.buildingIncome.set(e, (this.buildingIncome.get(e) || 0) + earned);
     }
@@ -197,6 +200,12 @@ export class FestivalManager {
       const tVal = Math.min(20, tierSat);
       sat += tVal;
       factors.push({ label: 'Building Tiers', value: +tVal.toFixed(1), icon: '⬆️' });
+    }
+
+    if (this.prepBonuses && this.prepBonuses.stageSatisfactionBonus) {
+      const prepVal = this.prepBonuses.stageSatisfactionBonus;
+      sat += prepVal;
+      factors.push({ label: 'Festival Prep', value: +prepVal.toFixed(1), icon: '📋' });
     }
 
     if (this.ticketPrice > 100) {

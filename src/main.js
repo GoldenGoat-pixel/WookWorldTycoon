@@ -21,6 +21,7 @@ import { EventManager } from './game/events.js';
 import { getAdjacencyBonuses } from './game/adjacency.js';
 import { EffectsManager } from './game/effects.js';
 import { getNextTier, getTierById, getSeasonCostScale } from './game/tiers.js';
+import { PrepManager } from './game/prep.js';
 
 // --- Renderer ---
 const canvas = document.getElementById('game-canvas');
@@ -93,6 +94,7 @@ const security = new SecurityGuardManager(scene, world);
 const services = new ServiceWorkerManager(scene, world);
 const events = new EventManager();
 const effects = new EffectsManager(scene);
+const prep = new PrepManager();
 const festival = new FestivalManager(economy, world, dayNight, staff);
 infoPanel.setLiveSources(crowd, festival, staff);
 infoPanel.setWorld(world);
@@ -106,6 +108,8 @@ events.onEvent = (evt) => {
   showToast(`${evt.icon} ${evt.message}`);
   updateEventBanner();
   effects.setEventVisual(evt.id);
+  if (evt.id === 'rain') sounds.playRainAmbience();
+  if (evt.id === 'wind') sounds.playWindSound();
   if (evt.effects.satisfactionFlat) {
     for (const att of crowd.attendees) {
       att.satisfaction = Math.max(0, Math.min(100, att.satisfaction + evt.effects.satisfactionFlat));
@@ -115,6 +119,8 @@ events.onEvent = (evt) => {
 events.onEventEnd = () => {
   updateEventBanner();
   effects.clearEventVisual();
+  sounds.stopRainAmbience();
+  sounds.stopWindSound();
 };
 
 events.onChoiceEvent = (evt) => {
@@ -477,11 +483,20 @@ function checkUnlocks() {
 festival.onPhaseChange = (phase) => {
   if (phase === 'hosting') {
     festivalPanel.classList.add('hidden');
+    document.getElementById('prep-panel').classList.add('hidden');
     festivalControls.classList.add('hidden');
     festivalLive.classList.remove('hidden');
     toolbarEl.classList.add('hosting');
     buildMenu.hide();
+    prep.applyPreFestival(economy);
+    const bonuses = prep.getBonuses();
+    festival.prepBonuses = bonuses;
+    staff.prepSpeedBonus = bonuses.staffSpeedBonus;
+    crowd.prepBonuses = bonuses;
+    services.litterSpawnMult = bonuses.litterSpawnMult;
     events.reset();
+    if (bonuses.eventImmunityDays > 0) events.immunityTime = bonuses.eventImmunityDays * festival.dayDuration;
+    if (bonuses.weatherResistance > 0) events.weatherResistance = bonuses.weatherResistance;
     if (currentTool === 'build' || currentTool === 'bulldoze') {
       currentTool = 'select';
       toolbar.setTool('select');
@@ -491,7 +506,8 @@ festival.onPhaseChange = (phase) => {
     security.spawnGuards(staff);
     services.spawnWorkers(staff);
     sounds.stopForestAmbience();
-    sounds.startFestivalAmbience();
+    const stageEntries = world.placed.filter(e => ['medium_stage', 'main_stage', 'dj_booth', 'acoustic_tent', 'mega_stage'].includes(e.data.id));
+    sounds.startFestivalAmbience(stageEntries);
     sounds.playPlace();
   } else if (phase === 'results') {
     festivalLive.classList.add('hidden');
@@ -512,6 +528,11 @@ festival.onPhaseChange = (phase) => {
     festivalControls.classList.remove('hidden');
     toolbarEl.classList.remove('hosting');
     festival.liveSatisfaction = null;
+    festival.prepBonuses = null;
+    staff.prepSpeedBonus = 0;
+    crowd.prepBonuses = null;
+    services.litterSpawnMult = 1;
+    prep.advanceSeason();
     sounds.startForestAmbience();
     updateSeasonDisplay();
     economy.updateHUD();
@@ -532,6 +553,60 @@ document.getElementById('festival-btn').addEventListener('click', () => {
 document.getElementById('close-festival').addEventListener('click', () => {
   festivalPanel.classList.add('hidden');
 });
+
+// --- Prep Board ---
+const prepPanel = document.getElementById('prep-panel');
+
+document.getElementById('prep-btn').addEventListener('click', () => {
+  festivalPanel.classList.add('hidden');
+  objectivesPanel.classList.add('hidden');
+  prepPanel.classList.toggle('hidden');
+  if (!prepPanel.classList.contains('hidden')) renderPrepBoard();
+});
+
+document.getElementById('close-prep').addEventListener('click', () => {
+  prepPanel.classList.add('hidden');
+});
+
+function renderPrepBoard() {
+  const actions = prep.getAvailableActions(economy.reputation, economy.money);
+  const summaryEl = document.getElementById('prep-summary');
+  const bought = prep.purchased.length;
+  summaryEl.innerHTML = bought > 0
+    ? `<strong>${bought}</strong> prep action${bought > 1 ? 's' : ''} purchased for Season ${festival.season}`
+    : `Prepare for Season ${festival.season} — invest in actions that boost your next festival.`;
+
+  const container = document.getElementById('prep-actions');
+  container.innerHTML = '';
+  for (const a of actions) {
+    const el = document.createElement('div');
+    let cls = 'prep-action';
+    let tag = '';
+    if (a.alreadyBought) { cls += ' bought'; tag = '<span class="prep-tag bought-tag">Purchased</span>'; }
+    else if (!a.affordable) { cls += ' locked'; tag = '<span class="prep-tag locked-tag">Can\'t afford</span>'; }
+    el.className = cls;
+    el.innerHTML = `
+      <div class="prep-icon">${a.icon}</div>
+      <div class="prep-info">
+        <div class="prep-name">${a.name}${tag}</div>
+        <div class="prep-desc">${a.desc}</div>
+        <div class="prep-effect">${a.effect}</div>
+      </div>
+      <div class="prep-cost ${a.cost === 0 ? 'free' : ''}">${a.cost === 0 ? 'FREE' : '$' + a.cost.toLocaleString()}</div>
+    `;
+    if (!a.alreadyBought && a.affordable) {
+      el.addEventListener('click', () => {
+        const result = prep.purchase(a.id, economy);
+        if (result) {
+          sounds.playCashRegister();
+          showToast(`${result.icon} ${result.name} — ${result.effect}`);
+          renderPrepBoard();
+        }
+      });
+    }
+    container.appendChild(el);
+  }
+}
 
 document.getElementById('price-down').addEventListener('click', () => {
   festival.ticketPrice = Math.max(10, festival.ticketPrice - 10);
@@ -764,6 +839,7 @@ function loadSlotData(slot) {
     if (saved.festival) festival.loadJSON(saved.festival);
     if (saved.objectives) objectives.loadJSON(saved.objectives);
     if (saved.staff) staff.loadJSON(saved.staff, world);
+    if (saved.prep) prep.loadJSON(saved.prep);
     lastUnlockRep = economy.reputation;
     updateSeasonDisplay();
   }
@@ -865,7 +941,8 @@ document.addEventListener('visibilitychange', () => {
         buildings: world.toJSON(),
         festival: festival.toJSON(),
         objectives: objectives.toJSON(),
-        staff: staff.toJSON()
+        staff: staff.toJSON(),
+        prep: prep.toJSON()
       });
     }
   } else if (_lastHidden > 0 && Date.now() - _lastHidden > 300000) {
@@ -925,7 +1002,8 @@ document.getElementById('main-menu-btn').addEventListener('click', () => {
       buildings: world.toJSON(),
       festival: festival.toJSON(),
       objectives: objectives.toJSON(),
-      staff: staff.toJSON()
+      staff: staff.toJSON(),
+      prep: prep.toJSON()
     });
   }
   window.location.href = window.location.pathname + '?t=' + Date.now();
@@ -965,6 +1043,7 @@ function animate(time) {
     festival.vendorTick();
     updateLiveHUD();
     updateEventBanner();
+    sounds.updateCrowdAmbience(crowd.getCount(), crowd.getLiveSatisfaction());
     lastVendorTick = time;
   }
 
@@ -1007,7 +1086,8 @@ function animate(time) {
       buildings: world.toJSON(),
       festival: festival.toJSON(),
       objectives: objectives.toJSON(),
-      staff: staff.toJSON()
+      staff: staff.toJSON(),
+      prep: prep.toJSON()
     });
     lastSave = time;
   }

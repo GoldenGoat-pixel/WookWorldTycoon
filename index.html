@@ -49,7 +49,18 @@
   <!-- Festival controls (always visible) -->
   <div id="festival-controls">
     <button id="festival-btn" class="hud-btn">🎪 Plan Festival</button>
+    <button id="prep-btn" class="hud-btn">📋 Prep Board</button>
     <button id="objectives-btn" class="hud-btn">🏆 Goals</button>
+  </div>
+
+  <!-- Prep Board panel -->
+  <div id="prep-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2>📋 Festival Prep</h2>
+      <button id="close-prep" class="close-btn">&times;</button>
+    </div>
+    <div id="prep-summary" class="prep-summary"></div>
+    <div id="prep-actions"></div>
   </div>
 
   <!-- Festival live HUD (visible during hosting) -->

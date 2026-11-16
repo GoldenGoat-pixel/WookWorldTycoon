@@ -658,7 +658,8 @@ export class AttendeeManager {
     if (this.attendees.length >= this.maxAttendees) return;
     const ep = this._getEntryPoint();
     const hasVIPLounge = this.world.placed.some(e => e.data.id === 'vip_lounge');
-    const isVIP = hasVIPLounge && Math.random() < 0.1;
+    const vipRate = 0.1 * (this.prepBonuses?.vipSpawnMult || 1);
+    const isVIP = hasVIPLounge && Math.random() < vipRate;
     const mesh = isVIP ? this._createMesh(true) : this._getMesh();
     const att = new Attendee(mesh, ep.x, ep.z, isVIP);
     att.hasContraband = Math.random() < 0.15;
@@ -902,7 +903,7 @@ export class AttendeeManager {
 
               if (entry.data.income) {
                 const base = 2 + Math.floor(Math.random() * 5);
-                let spendMult = att.isVIP ? 3 : 1;
+                let spendMult = att.isVIP ? 3 * (1 + (this.prepBonuses?.vipSpendBonus || 0)) : 1;
                 if (att.intoxLevel === 'drunk') spendMult *= 1.5;
                 else if (att.intoxLevel === 'wasted') spendMult *= 2;
                 else if (att.intoxLevel === 'tipsy') spendMult *= 1.2;
